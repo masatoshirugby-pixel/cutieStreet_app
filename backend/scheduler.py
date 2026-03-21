@@ -104,12 +104,19 @@ def run_pipeline(
 
 
 async def run_loop() -> None:
-    """毎日 FETCH_HOUR 時に run_pipeline を実行するループ"""
+    """起動時に即実行し、以降は毎日 FETCH_HOUR 時に run_pipeline を実行するループ"""
+    # 起動時に即実行
+    logger.info("起動時パイプライン実行開始")
+    try:
+        await asyncio.to_thread(run_pipeline)
+    except Exception as e:
+        logger.error(f"起動時パイプラインエラー: {e}")
+
     while True:
+        from datetime import timedelta
         now = datetime.now(timezone.utc)
         next_run = now.replace(hour=FETCH_HOUR, minute=0, second=0, microsecond=0)
         if now >= next_run:
-            from datetime import timedelta
             next_run += timedelta(days=1)
 
         wait_seconds = (next_run - now).total_seconds()
