@@ -7,7 +7,6 @@ from datetime import datetime, timezone, timedelta
 from models import EventRecord, EventResponse
 
 DB_PATH = os.getenv("DB_PATH", "./events.db")
-
 EVENT_EXPIRY_DAYS = 14  # イベント終了から2週間でDB削除
 
 
@@ -35,13 +34,16 @@ def init_db() -> None:
                 post_url   TEXT    NOT NULL,
                 posted_at  TEXT    NOT NULL,
                 is_event   INTEGER NOT NULL DEFAULT 0,
+                account    TEXT    NOT NULL DEFAULT '',
                 category   TEXT    DEFAULT NULL,
                 event_date TEXT    DEFAULT NULL,
+                venue      TEXT    DEFAULT NULL,
                 created_at TEXT    NOT NULL
             );
-            CREATE INDEX IF NOT EXISTS idx_posted_at ON events(posted_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_posted_at  ON events(posted_at DESC);
             CREATE UNIQUE INDEX IF NOT EXISTS idx_post_id ON events(post_id);
             CREATE INDEX IF NOT EXISTS idx_event_date ON events(event_date);
+            CREATE INDEX IF NOT EXISTS idx_account    ON events(account);
         """)
 
 
@@ -53,18 +55,18 @@ def is_post_exists(post_id: str) -> bool:
         return bool(row[0])
 
 
-def get_recent_events_for_dedup(limit: int = 100) -> list[dict]:
-    """重複検出用: 直近 limit 件のイベントを辞書リストで返す"""
+def get_recent_events_for_dedup(account: str, limit: int = 100) -> list[dict]:
+    """重複検出用: アカウント別直近 limit 件"""
     with get_conn() as conn:
         rows = conn.execute(
             """
             SELECT post_text, category, event_date
             FROM events
-            WHERE is_event = 1
+            WHERE is_event = 1 AND account = ?
             ORDER BY posted_at DESC
             LIMIT ?
             """,
-            (limit,),
+            (account, limit),
         ).fetchall()
         return [dict(row) for row in rows]
 
@@ -75,8 +77,9 @@ def save_event(event: EventRecord) -> bool:
         cursor = conn.execute(
             """
             INSERT OR IGNORE INTO events
-              (post_id, post_text, post_url, posted_at, is_event, category, event_date, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+              (post_id, post_text, post_url, posted_at, is_event, account,
+               category, event_date, venue, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 event.post_id,
@@ -84,41 +87,58 @@ def save_event(event: EventRecord) -> bool:
                 event.post_url,
                 event.posted_at,
                 1 if event.is_event else 0,
+                event.account,
                 event.category,
                 event.event_date,
+                event.venue,
                 event.created_at,
             ),
         )
         return cursor.rowcount > 0
 
 
-def get_events(limit: int = 30) -> list[EventResponse]:
+def get_events(account: Optional[str] = None, limit: int = 30) -> list[EventResponse]:
+    """
+    イベント一覧を返す。
+    event_date がある場合はイベント日順、ない場合は投稿日順でソート。
+    """
     with get_conn() as conn:
-        rows = conn.execute(
-            "SELECT * FROM events WHERE is_event = 1 ORDER BY posted_at DESC LIMIT ?",
-            (limit,),
-        ).fetchall()
+        if account:
+            rows = conn.execute(
+                """
+                SELECT * FROM events
+                WHERE is_event = 1 AND account = ?
+                ORDER BY COALESCE(event_date, date(posted_at)) DESC
+                LIMIT ?
+                """,
+                (account, limit),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """
+                SELECT * FROM events
+                WHERE is_event = 1
+                ORDER BY COALESCE(event_date, date(posted_at)) DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
         return [EventResponse(**dict(row)) for row in rows]
 
 
-def get_latest_post_id() -> Optional[str]:
-    """差分取得用: DB 内の最新 post_id を返す"""
+def get_latest_post_id(account: str) -> Optional[str]:
+    """差分取得用: アカウント別の最新 post_id を返す"""
     with get_conn() as conn:
         row = conn.execute(
-            "SELECT post_id FROM events ORDER BY posted_at DESC LIMIT 1"
+            "SELECT post_id FROM events WHERE account = ? ORDER BY posted_at DESC LIMIT 1",
+            (account,),
         ).fetchone()
         return row["post_id"] if row else None
 
 
 def delete_expired_events() -> int:
-    """
-    終了から2週間が経過したイベントを削除する。
-    - event_date が取得できている場合: event_date + 14日 < 今日
-    - event_date が NULL の場合: posted_at + 14日 < 今日
-    削除件数を返す。
-    """
+    """終了から2週間が経過したイベントを削除。削除件数を返す。"""
     cutoff = (datetime.now(timezone.utc) - timedelta(days=EVENT_EXPIRY_DAYS)).date().isoformat()
-
     with get_conn() as conn:
         cursor = conn.execute(
             """

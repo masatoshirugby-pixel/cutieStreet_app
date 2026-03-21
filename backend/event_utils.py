@@ -1,5 +1,5 @@
 """
-イベント日付抽出・重複検出ユーティリティ
+イベント日付抽出・会場抽出・重複検出ユーティリティ
 """
 
 import logging
@@ -62,6 +62,44 @@ def extract_event_date(text: str) -> date | None:
     """最初に見つかったイベント日付を返す。なければ None。"""
     dates = extract_event_dates(text)
     return dates[0] if dates else None
+
+
+# -----------------------------------------------------------------------
+# 対象アカウント定義
+# -----------------------------------------------------------------------
+
+ACCOUNTS: list[str] = [
+    "CUTIE_STREET_",
+    "CANDY_TUNE_",
+    "SWEET_STEADY",
+]
+
+# -----------------------------------------------------------------------
+# 会場抽出
+# -----------------------------------------------------------------------
+
+_VENUE_PATTERNS = [
+    re.compile(r"(ベルサール\S+)"),
+    re.compile(r"(Zepp\s*\S+)", re.IGNORECASE),
+    re.compile(r"(LIQUIDROOM|リキッドルーム)"),
+    re.compile(r"(豊洲PIT|豊洲ピット)"),
+    re.compile(r"(Zepp\S+)"),
+    re.compile(r"(\S+ホール)"),
+    re.compile(r"(\S+アリーナ)"),
+    re.compile(r"(\S+CLUB\s*\S+)", re.IGNORECASE),
+    re.compile(r"(\S+劇場)"),
+    re.compile(r"(\S+会館)"),
+    re.compile(r"(\S+センター)"),
+]
+
+
+def extract_venue(text: str) -> str | None:
+    """テキストから会場名を抽出する。最初にマッチしたものを返す。"""
+    for pat in _VENUE_PATTERNS:
+        m = pat.search(text)
+        if m:
+            return m.group(1).strip()
+    return None
 
 
 # -----------------------------------------------------------------------

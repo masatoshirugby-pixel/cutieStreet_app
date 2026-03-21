@@ -14,10 +14,9 @@ from models import TweetData
 logger = logging.getLogger(__name__)
 
 BEARER_TOKEN = os.getenv("X_BEARER_TOKEN", "")
-TARGET_USERNAME = "CUTIE_STREET_"
 
 _client: Optional[tweepy.Client] = None
-_user_id_cache: Optional[str] = None
+_user_id_cache: dict[str, str] = {}  # username -> user_id
 
 
 def _get_client() -> tweepy.Client:
@@ -27,27 +26,27 @@ def _get_client() -> tweepy.Client:
     return _client
 
 
-def get_user_id(username: str = TARGET_USERNAME) -> Optional[str]:
-    global _user_id_cache
-    if _user_id_cache:
-        return _user_id_cache
+def get_user_id(username: str) -> Optional[str]:
+    if username in _user_id_cache:
+        return _user_id_cache[username]
     try:
         resp = _get_client().get_user(username=username)
         if resp.data:
-            _user_id_cache = str(resp.data.id)
-            return _user_id_cache
+            _user_id_cache[username] = str(resp.data.id)
+            return _user_id_cache[username]
     except tweepy.errors.TweepyException as e:
         logger.error(f"ユーザーID取得失敗: {e}")
     return None
 
 
 def fetch_latest_tweets(
+    username: str,
     since_id: Optional[str] = None,
     max_results: int = 10,
 ) -> list[TweetData]:
-    user_id = get_user_id()
+    user_id = get_user_id(username)
     if not user_id:
-        logger.error("ユーザーIDを取得できませんでした")
+        logger.error(f"[{username}] ユーザーIDを取得できませんでした")
         return []
 
     try:

@@ -44,8 +44,11 @@ app.add_middleware(
 
 
 @app.get("/events", response_model=list[EventResponse])
-def get_events(limit: int = Query(default=30, ge=1, le=100)):
-    return db.get_events(limit=limit)
+def get_events(
+    limit: int = Query(default=30, ge=1, le=100),
+    account: str = Query(default=None),
+):
+    return db.get_events(account=account, limit=limit)
 
 
 @app.post("/fetch")
