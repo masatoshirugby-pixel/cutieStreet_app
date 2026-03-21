@@ -18,10 +18,13 @@ logger = logging.getLogger(__name__)
 # 日付抽出
 # -----------------------------------------------------------------------
 
-# 対応パターン例: 3月21日 / 03月21日 / 2026年3月21日
-_DATE_PATTERNS = [
-    re.compile(r"(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日"),
-    re.compile(r"(\d{1,2})月\s*(\d{1,2})日"),
+# パターン定義: (regex, has_year)
+# 対応例: 2026年3月21日 / 3月21日 / 2026/3/21 / 3/21
+_DATE_PATTERNS: list[tuple[re.Pattern, bool]] = [
+    (re.compile(r"(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日"), True),   # 2026年3月21日
+    (re.compile(r"(\d{4})/\s*(\d{1,2})/\s*(\d{1,2})"), True),       # 2026/3/21
+    (re.compile(r"(\d{1,2})月\s*(\d{1,2})日"), False),               # 3月21日
+    (re.compile(r"(?<!\d)(\d{1,2})/(\d{1,2})(?!\d)"), False),       # 3/21
 ]
 
 # 曜日・補助キーワード（日付の直後に現れやすい）
@@ -36,10 +39,10 @@ def extract_event_dates(text: str) -> list[date]:
     today = datetime.now(timezone.utc).date()
     results: list[date] = []
 
-    for pat in _DATE_PATTERNS:
+    for pat, has_year in _DATE_PATTERNS:
         for m in pat.finditer(text):
             try:
-                if pat.groups == 3 or len(m.groups()) == 3:
+                if has_year:
                     year, month, day = int(m.group(1)), int(m.group(2)), int(m.group(3))
                 else:
                     month, day = int(m.group(1)), int(m.group(2))
@@ -49,7 +52,7 @@ def extract_event_dates(text: str) -> list[date]:
                     if (today - candidate).days > 90:
                         year += 1
 
-                d = date(int(year), int(month), int(day))
+                d = date(year, month, day)
                 if d not in results:
                     results.append(d)
             except ValueError:
