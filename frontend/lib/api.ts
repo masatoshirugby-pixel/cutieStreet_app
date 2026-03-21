@@ -9,6 +9,7 @@ export interface Event {
   category: string | null;
   event_date: string | null;
   venue: string | null;
+  image_url: string | null;
   created_at: string;
 }
 
