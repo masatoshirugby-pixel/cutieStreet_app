@@ -52,10 +52,18 @@ def get_events(
 
 
 @app.post("/fetch")
-async def manual_fetch():
-    """手動トリガー: X取得 → Claude判定 → DB保存"""
+async def manual_fetch(
+    start_time: str = Query(default=None, description="取得開始日時 (RFC3339例: 2026-03-15T00:00:00Z)"),
+    max_results: int = Query(default=10, ge=5, le=100, description="1アカウントあたりの最大取得件数"),
+):
+    """
+    手動トリガー: X取得 → イベント判定 → DB保存
+
+    - start_time: 過去分を取得する場合に指定 (例: 2026-03-15T00:00:00Z)
+    - max_results: テスト時は5にすると API コストを最小化できる
+    """
     try:
-        count = await asyncio.to_thread(scheduler.run_pipeline)
+        count = await asyncio.to_thread(scheduler.run_pipeline, start_time, max_results)
         return {"message": f"{count} 件のイベントを保存しました"}
     except Exception as e:
         logger.error(f"/fetch エラー: {e}")

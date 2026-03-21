@@ -13,10 +13,19 @@ logger = logging.getLogger(__name__)
 FETCH_HOUR = 8  # 毎日 08:00 UTC に取得
 
 
-def run_pipeline_for_account(account: str) -> int:
+def run_pipeline_for_account(
+    account: str,
+    start_time: str | None = None,
+    max_results: int = 10,
+) -> int:
     """指定アカウントの取得→判定→保存パイプライン。保存件数を返す"""
-    since_id = db.get_latest_post_id(account)
-    tweets = x_fetcher.fetch_latest_tweets(username=account, since_id=since_id)
+    since_id = db.get_latest_post_id(account) if not start_time else None
+    tweets = x_fetcher.fetch_latest_tweets(
+        username=account,
+        since_id=since_id,
+        start_time=start_time,
+        max_results=max_results,
+    )
 
     if not tweets:
         logger.info(f"[{account}] 新規ツイートなし。スキップ")
@@ -76,11 +85,14 @@ def run_pipeline_for_account(account: str) -> int:
     return saved
 
 
-def run_pipeline() -> int:
+def run_pipeline(
+    start_time: str | None = None,
+    max_results: int = 10,
+) -> int:
     """全アカウントのパイプラインを実行。合計保存件数を返す"""
     total = 0
     for account in ACCOUNTS:
-        total += run_pipeline_for_account(account)
+        total += run_pipeline_for_account(account, start_time=start_time, max_results=max_results)
 
     deleted = db.delete_expired_events()
     if deleted:

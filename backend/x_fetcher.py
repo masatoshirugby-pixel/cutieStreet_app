@@ -42,6 +42,7 @@ def get_user_id(username: str) -> Optional[str]:
 def fetch_latest_tweets(
     username: str,
     since_id: Optional[str] = None,
+    start_time: Optional[str] = None,  # RFC3339 例: "2026-03-15T00:00:00Z"
     max_results: int = 10,
 ) -> list[TweetData]:
     user_id = get_user_id(username)
@@ -54,6 +55,7 @@ def fetch_latest_tweets(
             id=user_id,
             max_results=max(5, min(max_results, 100)),
             since_id=since_id,
+            start_time=start_time,
             tweet_fields=["created_at", "text"],
             exclude=["retweets", "replies"],
         )
