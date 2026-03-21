@@ -1,0 +1,18 @@
+# 環境変数・シークレット
+backend/.env
+
+# DB
+backend/events.db
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node.js
+frontend/node_modules/
+frontend/.next/
+
+# ローカル環境変数
+frontend/.env.local
