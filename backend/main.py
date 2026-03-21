@@ -45,7 +45,7 @@ app.add_middleware(
 
 @app.get("/events", response_model=list[EventResponse])
 def get_events(
-    limit: int = Query(default=30, ge=1, le=100),
+    limit: int = Query(default=200, ge=1, le=500),
     account: str = Query(default=None),
 ):
     return db.get_events(account=account, limit=limit)
