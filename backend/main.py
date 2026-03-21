@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import db
 import scheduler
-from models import EventResponse
+from models import EventResponse, EmailResponse
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -68,6 +68,11 @@ async def manual_fetch(
     except Exception as e:
         logger.error(f"/fetch エラー: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/emails", response_model=list[EmailResponse])
+def get_emails(account: str = Query(default=None)):
+    return db.get_emails(account=account)
 
 
 @app.get("/health")

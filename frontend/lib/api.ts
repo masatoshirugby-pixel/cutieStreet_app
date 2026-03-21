@@ -1,3 +1,15 @@
+export interface EmailItem {
+  id: number;
+  message_id: string;
+  account: string;
+  subject: string | null;
+  sender: string | null;
+  received_at: string;
+  body_preview: string | null;
+  deadline_date: string | null;
+  created_at: string;
+}
+
 export interface Event {
   id: number;
   post_id: string;
@@ -21,5 +33,14 @@ export async function fetchEvents(account: string, limit = 200): Promise<Event[]
     { next: { revalidate: 3600 } }
   );
   if (!res.ok) throw new Error(`APIエラー: ${res.status}`);
+  return res.json();
+}
+
+export async function fetchEmails(account: string): Promise<EmailItem[]> {
+  const res = await fetch(
+    `${BASE_URL}/emails?account=${account}`,
+    { next: { revalidate: 3600 } }
+  );
+  if (!res.ok) return [];
   return res.json();
 }

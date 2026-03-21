@@ -1,6 +1,7 @@
 import Image from "next/image";
-import { fetchEvents, type Event } from "@/lib/api";
+import { fetchEvents, fetchEmails, type Event } from "@/lib/api";
 import Calendar from "@/components/Calendar";
+import EmailPanel from "@/components/EmailPanel";
 
 export const revalidate = 3600;
 
@@ -14,6 +15,7 @@ export default async function CutieStreetPage() {
   } catch {
     error = "イベント情報の取得に失敗しました。";
   }
+  const emails = await fetchEmails("CUTIE_STREET_");
 
   return (
     <main className="min-h-screen bg-pink-50">
@@ -33,6 +35,7 @@ export default async function CutieStreetPage() {
       </nav>
 
       <div className="max-w-5xl mx-auto px-4 py-8">
+        <EmailPanel emails={emails} accentColor="pink" />
         {error ? (
           <p className="text-center text-red-500">{error}</p>
         ) : (

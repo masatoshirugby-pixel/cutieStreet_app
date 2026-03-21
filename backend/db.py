@@ -6,10 +6,10 @@ from datetime import datetime, timezone, timedelta
 import psycopg2
 import psycopg2.extras
 
-from models import EventRecord, EventResponse
+from models import EventRecord, EventResponse, EmailRecord, EmailResponse
 
 DATABASE_URL = os.getenv("DATABASE_URL", "")
-EVENT_EXPIRY_DAYS = 14  # イベント終了から2週間でDB削除
+EVENT_EXPIRY_DAYS = 14
 
 
 @contextmanager
@@ -41,13 +41,30 @@ def init_db() -> None:
                     event_date TEXT    DEFAULT NULL,
                     venue      TEXT    DEFAULT NULL,
                     image_url  TEXT    DEFAULT NULL,
+                    source     TEXT    NOT NULL DEFAULT 'x',
                     created_at TEXT    NOT NULL
                 )
             """)
+            cur.execute("ALTER TABLE events ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'x'")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_posted_at  ON events(posted_at DESC)")
             cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_post_id ON events(post_id)")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_event_date ON events(event_date)")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_account    ON events(account)")
+
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS emails (
+                    id            SERIAL PRIMARY KEY,
+                    message_id    TEXT NOT NULL UNIQUE,
+                    account       TEXT NOT NULL,
+                    subject       TEXT,
+                    sender        TEXT,
+                    received_at   TEXT NOT NULL,
+                    body_preview  TEXT,
+                    deadline_date TEXT DEFAULT NULL,
+                    created_at    TEXT NOT NULL
+                )
+            """)
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_email_account ON emails(account)")
 
 
 def is_post_exists(post_id: str) -> bool:
@@ -60,7 +77,6 @@ def is_post_exists(post_id: str) -> bool:
 
 
 def get_recent_events_for_dedup(account: str, limit: int = 100) -> list[dict]:
-    """重複検出用: アカウント別直近 limit 件"""
     with get_conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
@@ -77,15 +93,14 @@ def get_recent_events_for_dedup(account: str, limit: int = 100) -> list[dict]:
 
 
 def save_event(event: EventRecord) -> bool:
-    """保存成功で True、重複スキップで False を返す"""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
                 INSERT INTO events
                   (post_id, post_text, post_url, posted_at, is_event, account,
-                   category, event_date, venue, image_url, created_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                   category, event_date, venue, image_url, source, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (post_id) DO NOTHING
                 """,
                 (
@@ -99,6 +114,7 @@ def save_event(event: EventRecord) -> bool:
                     event.event_date,
                     event.venue,
                     event.image_url,
+                    event.source,
                     event.created_at,
                 ),
             )
@@ -106,10 +122,6 @@ def save_event(event: EventRecord) -> bool:
 
 
 def get_events(account: Optional[str] = None, limit: int = 200) -> list[EventResponse]:
-    """
-    イベント一覧を返す。
-    event_date があるイベントを優先し、イベント日順でソート。
-    """
     with get_conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             if account:
@@ -136,7 +148,6 @@ def get_events(account: Optional[str] = None, limit: int = 200) -> list[EventRes
 
 
 def get_latest_post_id(account: str) -> Optional[str]:
-    """差分取得用: アカウント別の最新 post_id を返す"""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -148,7 +159,6 @@ def get_latest_post_id(account: str) -> Optional[str]:
 
 
 def delete_expired_events() -> int:
-    """終了から2週間が経過したイベントを削除。削除件数を返す。"""
     cutoff = (datetime.now(timezone.utc) - timedelta(days=EVENT_EXPIRY_DAYS)).date().isoformat()
     with get_conn() as conn:
         with conn.cursor() as cur:
@@ -164,3 +174,61 @@ def delete_expired_events() -> int:
                 (cutoff, cutoff),
             )
             return cur.rowcount
+
+
+# -----------------------------------------------------------------------
+# メール関連
+# -----------------------------------------------------------------------
+
+def is_email_exists(message_id: str) -> bool:
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT EXISTS(SELECT 1 FROM emails WHERE message_id = %s)", (message_id,)
+            )
+            return cur.fetchone()[0]
+
+
+def save_email(record: EmailRecord) -> bool:
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO emails
+                  (message_id, account, subject, sender, received_at,
+                   body_preview, deadline_date, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (message_id) DO NOTHING
+                """,
+                (
+                    record.message_id,
+                    record.account,
+                    record.subject,
+                    record.sender,
+                    record.received_at,
+                    record.body_preview,
+                    record.deadline_date,
+                    record.created_at,
+                ),
+            )
+            return cur.rowcount > 0
+
+
+def get_emails(account: Optional[str] = None) -> list[EmailResponse]:
+    with get_conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            if account:
+                cur.execute(
+                    """
+                    SELECT * FROM emails
+                    WHERE account = %s
+                    ORDER BY received_at DESC
+                    LIMIT 50
+                    """,
+                    (account,),
+                )
+            else:
+                cur.execute(
+                    "SELECT * FROM emails ORDER BY received_at DESC LIMIT 50"
+                )
+            return [EmailResponse(**dict(row)) for row in cur.fetchall()]

@@ -27,7 +27,8 @@ class EventRecord(BaseModel):
     category: Optional[str] = None
     event_date: Optional[str] = None
     venue: Optional[str] = None
-    image_url: Optional[str] = None   # 投稿に添付された画像URL
+    image_url: Optional[str] = None
+    source: str = "x"  # x / youtube / web / email
     created_at: str
 
 
@@ -46,4 +47,32 @@ class EventResponse(BaseModel):
     event_date: Optional[str] = None
     venue: Optional[str] = None
     image_url: Optional[str] = None
+    source: Optional[str] = "x"
+    created_at: str
+
+
+class EmailRecord(BaseModel):
+    """メールDB保存レコード"""
+    message_id: str
+    account: str
+    subject: Optional[str] = None
+    sender: Optional[str] = None
+    received_at: str
+    body_preview: Optional[str] = None
+    deadline_date: Optional[str] = None
+    created_at: str
+
+
+class EmailResponse(BaseModel):
+    """GET /emails エンドポイントのレスポンス"""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    message_id: str
+    account: str
+    subject: Optional[str] = None
+    sender: Optional[str] = None
+    received_at: str
+    body_preview: Optional[str] = None
+    deadline_date: Optional[str] = None
     created_at: str

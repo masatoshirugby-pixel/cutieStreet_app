@@ -1,0 +1,110 @@
+"""
+公式サイトのニュース・スケジュールページをスクレイピングして
+イベント情報を取得する。リンク先の詳細ページも追跡する。
+"""
+
+import hashlib
+import logging
+import time
+from datetime import datetime, timezone
+from urllib.parse import urljoin, urlparse
+
+import requests
+from bs4 import BeautifulSoup
+
+from models import TweetData
+
+logger = logging.getLogger(__name__)
+
+SITE_URLS: dict[str, list[str]] = {
+    "CUTIE_STREET_": [
+        "https://cutiestreet.asobisystem.com/news/1/",
+        "https://cutiestreet.asobisystem.com/live_information/schedule/list/",
+    ],
+    "CANDY_TUNE_": [
+        "https://candytune.asobisystem.com/news/1/",
+        "https://candytune.asobisystem.com/live_information/schedule/list/",
+    ],
+    "SWEET_STEADY": [
+        "https://sweetsteady.asobisystem.com/live_information/schedule/list/",
+        "https://sweetsteady.asobisystem.com/news/1/",
+    ],
+}
+
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    )
+}
+
+MAX_DETAIL_PAGES = 20  # 1つの一覧ページから追跡する詳細ページの上限
+
+
+def _fetch_soup(url: str) -> BeautifulSoup | None:
+    try:
+        resp = requests.get(url, headers=HEADERS, timeout=15)
+        resp.raise_for_status()
+        return BeautifulSoup(resp.text, "html.parser")
+    except Exception as e:
+        logger.warning(f"ページ取得失敗 {url}: {e}")
+        return None
+
+
+def _get_article_links(soup: BeautifulSoup, base_url: str) -> list[str]:
+    """一覧ページから同一ドメインの詳細ページリンクを抽出する"""
+    base_domain = urlparse(base_url).netloc
+    seen: set[str] = set()
+    links: list[str] = []
+
+    for a in soup.find_all("a", href=True):
+        full = urljoin(base_url, a["href"])
+        # 同一ドメイン・重複なし・一覧URL自体は除外
+        if (
+            urlparse(full).netloc == base_domain
+            and full not in seen
+            and full != base_url
+            and "#" not in full
+        ):
+            seen.add(full)
+            links.append(full)
+
+    return links[:MAX_DETAIL_PAGES]
+
+
+def _soup_to_tweet(url: str, soup: BeautifulSoup) -> TweetData:
+    title = soup.title.string.strip() if soup.title else ""
+    body = soup.get_text(separator="\n", strip=True)[:2000]
+    post_id = f"web_{hashlib.md5(url.encode()).hexdigest()[:12]}"
+    return TweetData(
+        post_id=post_id,
+        post_text=f"{title}\n{body}",
+        posted_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        image_url=None,
+    )
+
+
+def fetch_web_events(account: str) -> list[TweetData]:
+    """公式サイトのイベント情報を取得する"""
+    base_urls = SITE_URLS.get(account, [])
+    results: list[TweetData] = []
+    seen_ids: set[str] = set()
+
+    for base_url in base_urls:
+        soup = _fetch_soup(base_url)
+        if not soup:
+            continue
+
+        # 詳細ページを追跡して取得
+        for link in _get_article_links(soup, base_url):
+            time.sleep(0.5)  # サーバー負荷軽減
+            detail_soup = _fetch_soup(link)
+            if not detail_soup:
+                continue
+            td = _soup_to_tweet(link, detail_soup)
+            if td.post_id not in seen_ids:
+                results.append(td)
+                seen_ids.add(td.post_id)
+
+    logger.info(f"[Web:{account}] {len(results)} 件取得")
+    return results

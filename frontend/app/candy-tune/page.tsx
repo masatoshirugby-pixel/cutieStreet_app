@@ -1,6 +1,7 @@
 import Image from "next/image";
-import { fetchEvents, type Event } from "@/lib/api";
+import { fetchEvents, fetchEmails, type Event } from "@/lib/api";
 import Calendar from "@/components/Calendar";
+import EmailPanel from "@/components/EmailPanel";
 
 export const revalidate = 3600;
 
@@ -14,6 +15,7 @@ export default async function CandyTunePage() {
   } catch {
     error = "イベント情報の取得に失敗しました。";
   }
+  const emails = await fetchEmails("CANDY_TUNE_");
 
   return (
     <main className="min-h-screen bg-yellow-50">
@@ -31,6 +33,7 @@ export default async function CandyTunePage() {
       </nav>
 
       <div className="max-w-5xl mx-auto px-4 py-8">
+        <EmailPanel emails={emails} accentColor="yellow" />
         {error ? (
           <p className="text-center text-red-500">{error}</p>
         ) : (
