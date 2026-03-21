@@ -1,10 +1,10 @@
-import { fetchEvents } from "@/lib/api";
+import { fetchEvents, type Event } from "@/lib/api";
 import EventCard from "@/components/EventCard";
 
 export const revalidate = 3600; // ISR: 1時間ごとに再生成
 
 export default async function EventsPage() {
-  let events = [];
+  let events: Event[] = [];
   let error = "";
 
   try {
