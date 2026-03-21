@@ -38,6 +38,7 @@ def init_db() -> None:
                 category   TEXT    DEFAULT NULL,
                 event_date TEXT    DEFAULT NULL,
                 venue      TEXT    DEFAULT NULL,
+                image_url  TEXT    DEFAULT NULL,
                 created_at TEXT    NOT NULL
             );
             CREATE INDEX IF NOT EXISTS idx_posted_at  ON events(posted_at DESC);
@@ -78,8 +79,8 @@ def save_event(event: EventRecord) -> bool:
             """
             INSERT OR IGNORE INTO events
               (post_id, post_text, post_url, posted_at, is_event, account,
-               category, event_date, venue, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+               category, event_date, venue, image_url, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 event.post_id,
@@ -91,6 +92,7 @@ def save_event(event: EventRecord) -> bool:
                 event.category,
                 event.event_date,
                 event.venue,
+                event.image_url,
                 event.created_at,
             ),
         )

@@ -1,47 +1,44 @@
+import Image from "next/image";
 import { fetchEvents, type Event } from "@/lib/api";
-import EventCard from "@/components/EventCard";
+import Calendar from "@/components/Calendar";
 
 export const revalidate = 3600;
+
+const HEADER_IMAGE = "https://d1rjcmiyngzjnh.cloudfront.net/prod/public/fcopen/contents/top_image/1217/82eb2c3a913dd9c6b552ea68418be46c.jpeg";
 
 export default async function SweetSteadyPage() {
   let events: Event[] = [];
   let error = "";
-
   try {
     events = await fetchEvents("SWEET_STEADY");
   } catch {
-    error = "イベント情報の取得に失敗しました。しばらく経ってから再度お試しください。";
+    error = "イベント情報の取得に失敗しました。";
   }
 
   return (
     <main className="min-h-screen bg-blue-50">
-      <header className="bg-white border-b border-blue-200 py-6 px-4 text-center">
-        <h1 className="text-2xl font-bold text-blue-600 tracking-wide">🎵 SWEET STEADY イベント情報</h1>
-        <p className="text-sm text-gray-500 mt-1">公式Xのイベント告知を自動でまとめています</p>
-        <nav className="mt-3 flex justify-center gap-4 text-sm">
-          <a href="/" className="text-gray-400 hover:text-pink-500">CUTIE_STREET_</a>
-          <a href="/candy-tune" className="text-gray-400 hover:text-pink-500">CANDY TUNE</a>
-          <span className="font-bold text-blue-600 border-b-2 border-blue-400 pb-1">SWEET STEADY</span>
-        </nav>
-      </header>
+      <div className="relative w-full h-48 md:h-64 overflow-hidden">
+        <Image src={HEADER_IMAGE} alt="SWEET STEADY" fill className="object-cover object-top" />
+        <div className="absolute inset-0 bg-black/30 flex items-end px-6 pb-4">
+          <h1 className="text-white text-2xl font-bold tracking-wide drop-shadow">🎵 SWEET STEADY イベント情報</h1>
+        </div>
+      </div>
 
-      <div className="max-w-3xl mx-auto px-4 py-8">
+      <nav className="bg-white border-b border-blue-200 px-4 py-2 flex justify-center gap-6 text-sm">
+        <a href="/" className="text-gray-400 hover:text-pink-500 pb-1">CUTIE_STREET_</a>
+        <a href="/candy-tune" className="text-gray-400 hover:text-pink-500 pb-1">CANDY TUNE</a>
+        <span className="font-bold text-blue-600 border-b-2 border-blue-400 pb-1">SWEET STEADY</span>
+      </nav>
+
+      <div className="max-w-5xl mx-auto px-4 py-8">
         {error ? (
           <p className="text-center text-red-500">{error}</p>
-        ) : events.length === 0 ? (
-          <p className="text-center text-gray-400">現在表示できるイベント情報はありません</p>
         ) : (
-          <div className="flex flex-col gap-4">
-            {events.map((event) => (
-              <EventCard key={event.post_id} event={event} />
-            ))}
-          </div>
+          <Calendar events={events} accentColor="blue" />
         )}
       </div>
 
-      <footer className="text-center text-xs text-gray-400 pb-8">
-        イベント自動整理システム
-      </footer>
+      <footer className="text-center text-xs text-gray-400 pb-8">イベント自動整理システム</footer>
     </main>
   );
 }

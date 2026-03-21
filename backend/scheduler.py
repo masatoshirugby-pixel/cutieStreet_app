@@ -67,6 +67,7 @@ def run_pipeline_for_account(
             category=judgement.category,
             event_date=event_date_str,
             venue=venue,
+            image_url=tweet.image_url,
             created_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         )
 

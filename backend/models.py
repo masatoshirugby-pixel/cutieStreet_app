@@ -7,6 +7,7 @@ class TweetData(BaseModel):
     post_id: str
     post_text: str
     posted_at: str  # ISO8601 UTC
+    image_url: Optional[str] = None
 
 
 class JudgementResult(BaseModel):
@@ -22,10 +23,11 @@ class EventRecord(BaseModel):
     post_url: str
     posted_at: str
     is_event: bool
-    account: str              # X アカウント名 (例: CUTIE_STREET_)
+    account: str
     category: Optional[str] = None
-    event_date: Optional[str] = None  # 投稿から抽出したイベント日 (YYYY-MM-DD)
-    venue: Optional[str] = None       # 抽出した会場名
+    event_date: Optional[str] = None
+    venue: Optional[str] = None
+    image_url: Optional[str] = None   # 投稿に添付された画像URL
     created_at: str
 
 
@@ -43,4 +45,5 @@ class EventResponse(BaseModel):
     category: Optional[str] = None
     event_date: Optional[str] = None
     venue: Optional[str] = None
+    image_url: Optional[str] = None
     created_at: str
