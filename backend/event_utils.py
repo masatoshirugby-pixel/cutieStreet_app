@@ -40,10 +40,13 @@ _EVENT_DATE_CONTEXT_KEYWORDS = re.compile(
 # 申込締切日を示す文脈キーワード
 _DEADLINE_CONTEXT_KEYWORDS = re.compile(
     r"(申込締切|申込〆切|申し込み締切|申し込み〆切|申込期限|申し込み期限"
-    r"|受付締切|受付〆切|受付終了日?|受付期限|受付終了"
-    r"|応募締切|応募〆切|応募期限"
-    r"|締め切り|〆切|締切日時?|締切)\s*[：:：\s]?\s*"
+    r"|受付締切|受付〆切|受付終了日?|受付期限|受付終了|受付期間"
+    r"|応募締切|応募〆切|応募期限|応募受付"
+    r"|締め切り|〆切|締切日時?|締切"
+    r"|[次\d]?次?受付)\s*[：:：\s]?\s*"
 )
+# 日付範囲の区切り文字（～3月22日 の末尾が締切）
+_DATE_RANGE_SEP = re.compile(r"[～〜~\-－]")
 # 文脈キーワードから何文字以内の日付を「開催日」と見なすか
 _CONTEXT_WINDOW = 60
 
@@ -134,37 +137,54 @@ def extract_event_date(text: str) -> date | None:
     return dates[0] if dates else None
 
 
+def _parse_date_in_window(window: str, today: date) -> date | None:
+    """ウィンドウ文字列から日付を1件パースして返す（年省略対応）。"""
+    for pat, has_year in _DATE_PATTERNS:
+        m = pat.search(window)
+        if not m:
+            continue
+        try:
+            if has_year:
+                year, month, day = int(m.group(1)), int(m.group(2)), int(m.group(3))
+            else:
+                month, day = int(m.group(1)), int(m.group(2))
+                year = today.year
+                candidate = date(year, month, day)
+                if (today - candidate).days > 90:
+                    year += 1
+            d = date(year, month, day)
+            if (today - d).days > 365 * 5:
+                continue
+            return d
+        except ValueError:
+            pass
+    return None
+
+
 def extract_deadline_date(text: str) -> date | None:
     """
     投稿テキストから申込締切日を抽出する。
-    「締め切り」「受付終了」「申込期限」等のキーワード直後の日付を返す。
+    - 「締め切り」「受付」「申込期限」等のキーワード直後の日付を使用
+    - 「3月17日～3月22日」のような範囲表記は末尾（終了日）を締切とみなす
     """
     today = datetime.now(timezone.utc).date()
 
     for kw_match in _DEADLINE_CONTEXT_KEYWORDS.finditer(text):
         start = kw_match.end()
-        window = text[start: start + _CONTEXT_WINDOW]
+        window = text[start: start + _CONTEXT_WINDOW * 2]  # 範囲対応で広めに取る
 
-        for pat, has_year in _DATE_PATTERNS:
-            m = pat.search(window)
-            if not m:
-                continue
-            try:
-                if has_year:
-                    year, month, day = int(m.group(1)), int(m.group(2)), int(m.group(3))
-                else:
-                    month, day = int(m.group(1)), int(m.group(2))
-                    year = today.year
-                    candidate = date(year, month, day)
-                    if (today - candidate).days > 90:
-                        year += 1
+        # 範囲（～）が含まれる場合：末尾の日付を締切日とする
+        if _DATE_RANGE_SEP.search(window):
+            parts = _DATE_RANGE_SEP.split(window, maxsplit=1)
+            if len(parts) == 2:
+                end_date = _parse_date_in_window(parts[1], today)
+                if end_date:
+                    return end_date
 
-                d = date(year, month, day)
-                if (today - d).days > 365 * 5:
-                    continue
-                return d
-            except ValueError:
-                pass
+        # 範囲なし：最初に見つかった日付を締切日とする
+        d = _parse_date_in_window(window, today)
+        if d:
+            return d
 
     return None
 
