@@ -130,7 +130,7 @@ export default function Calendar({ events, accentColor }: Props) {
 
   // 選択イベントに関連する申込締切（全eventsから、フィルターに関わらず検索）
   const relatedDeadlines =
-    selected?.event_date
+    selected?.event_date && selected.category !== "申込締切"
       ? events
           .filter(
             (e) =>
@@ -148,6 +148,27 @@ export default function Calendar({ events, accentColor }: Props) {
               new Date(b.event_date!).getTime()
           )
       : [];
+
+  // 申込締切クリック時：この締切が対応する先のイベントを検索
+  const linkedEvent =
+    selected?.category === "申込締切" && selected.event_date
+      ? events
+          .filter(
+            (e) =>
+              e.account === selected.account &&
+              e.category !== "申込締切" &&
+              e.event_date !== null &&
+              new Date(e.event_date) >= new Date(selected.event_date!) &&
+              new Date(e.event_date).getTime() -
+                new Date(selected.event_date!).getTime() <=
+                45 * 24 * 60 * 60 * 1000
+          )
+          .sort(
+            (a, b) =>
+              new Date(a.event_date!).getTime() -
+              new Date(b.event_date!).getTime()
+          )[0] ?? null
+      : null;
 
   function prevMonth() {
     if (month === 0) {
@@ -354,51 +375,89 @@ export default function Calendar({ events, accentColor }: Props) {
               </span>
             )}
 
-            {/* イベント日 */}
-            {selected.event_date && (
-              <p className="text-lg font-bold text-gray-800 mt-2">
-                {formatEventDate(selected.event_date)}
-              </p>
-            )}
-
-            {/* 会場 */}
-            {selected.venue && (
-              <p className="text-sm text-gray-600 mt-1">📍 {selected.venue}</p>
-            )}
-
-            {/* 申込締切（関連メール） */}
-            {relatedDeadlines.length > 0 && (
-              <div className="mt-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                <p className="text-xs font-bold text-red-500 mb-1">📅 申込締切</p>
-                {relatedDeadlines.map((d) => (
-                  <p key={d.post_id} className="text-xs text-red-700 mt-0.5">
-                    {formatEventDate(d.event_date!)}
-                    {" — "}
-                    {d.post_text.replace("【メール】", "").slice(0, 35)}
-                    {d.post_text.replace("【メール】", "").length > 35 ? "…" : ""}
+            {/* 申込締切クリック時：対象イベント情報を表示 */}
+            {selected.category === "申込締切" ? (
+              <>
+                {selected.event_date && (
+                  <p className="text-lg font-bold text-red-600 mt-2">
+                    締切：{formatEventDate(selected.event_date)}
                   </p>
-                ))}
-              </div>
-            )}
+                )}
+                {linkedEvent ? (
+                  <div className="mt-3 bg-pink-50 border border-pink-200 rounded-lg px-3 py-2">
+                    <p className="text-xs font-bold text-pink-600 mb-1">対象イベント</p>
+                    <p className="text-sm font-semibold text-gray-800">
+                      {linkedEvent.category} — {linkedEvent.event_date ? formatEventDate(linkedEvent.event_date) : "日程未定"}
+                    </p>
+                    {linkedEvent.venue && (
+                      <p className="text-xs text-gray-500 mt-0.5">📍 {linkedEvent.venue}</p>
+                    )}
+                    {linkedEvent.post_url && (
+                      <a
+                        href={linkedEvent.post_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block mt-2 text-xs text-blue-500 hover:text-blue-700 underline"
+                      >
+                        {linkedEvent.source === "x" ? "𝕏 元の投稿を見る →" : "🌐 公式ページを見る →"}
+                      </a>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400 mt-2">対応するイベントが見つかりません</p>
+                )}
+                <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                  <p className="text-xs text-gray-500 leading-relaxed whitespace-pre-wrap">
+                    {selected.post_text.replace("【メール】", "")}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* イベント日 */}
+                {selected.event_date && (
+                  <p className="text-lg font-bold text-gray-800 mt-2">
+                    {formatEventDate(selected.event_date)}
+                  </p>
+                )}
 
-            {/* 画像 */}
-            {selected.image_url && (
-              <img
-                src={selected.image_url}
-                alt="イベント画像"
-                className="w-full rounded-lg mt-3 object-cover max-h-48"
-              />
-            )}
+                {/* 会場 */}
+                {selected.venue && (
+                  <p className="text-sm text-gray-600 mt-1">📍 {selected.venue}</p>
+                )}
 
-            {/* 本文 */}
-            <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-              <p className="text-xs text-gray-500 leading-relaxed whitespace-pre-wrap">
-                {selected.post_text}
-              </p>
-              <p className="text-xs text-gray-400 mt-1 text-right">
-                {formatPostedAt(selected.posted_at)} 投稿
-              </p>
-            </div>
+                {/* 申込締切（関連メール） */}
+                {relatedDeadlines.length > 0 && (
+                  <div className="mt-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                    <p className="text-xs font-bold text-red-500 mb-1">📅 申込締切</p>
+                    {relatedDeadlines.map((d) => (
+                      <p key={d.post_id} className="text-xs text-red-700 mt-0.5">
+                        {formatEventDate(d.event_date!)}
+                      </p>
+                    ))}
+                  </div>
+                )}
+
+                {/* 画像 */}
+                {selected.image_url && (
+                  <img
+                    src={selected.image_url}
+                    alt="イベント画像"
+                    className="w-full rounded-lg mt-3 object-cover max-h-48"
+                  />
+                )}
+
+                {/* 本文 */}
+                <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                  <p className="text-xs text-gray-500 leading-relaxed whitespace-pre-wrap">
+                    {selected.post_text}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1 text-right">
+                    {formatPostedAt(selected.posted_at)} 投稿
+                  </p>
+                </div>
+              </>
+            )}
 
             {/* ソースリンク */}
             {selected.post_url && (

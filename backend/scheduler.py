@@ -268,13 +268,13 @@ def run_pipeline(
 
 
 async def run_loop() -> None:
-    """起動時に即実行し、以降は毎日 FETCH_HOUR 時に run_pipeline を実行するループ"""
-    # 起動時に即実行（差分取得）
-    logger.info("起動時パイプライン実行開始")
+    """起動時はWebのみ実行し、以降は毎日 FETCH_HOUR 時に run_pipeline（Web+X+メール）を実行するループ"""
+    # 起動時はWebスクレイピングのみ（X APIは毎日FETCH_HOURのみ呼び出す）
+    logger.info("起動時Webパイプライン実行開始")
     try:
-        await asyncio.to_thread(run_pipeline)
+        await asyncio.to_thread(run_web_pipeline)
     except Exception as e:
-        logger.error(f"起動時パイプラインエラー: {e}")
+        logger.error(f"起動時Webパイプラインエラー: {e}")
 
     while True:
         from datetime import timedelta

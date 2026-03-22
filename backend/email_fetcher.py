@@ -41,6 +41,13 @@ EXCLUDE_SUBJECT_KEYWORDS = [
     "お買い上げありがとう",
     "order confirmation",
     "Order Confirmation",
+    # EC系メール除外
+    "【楽天",
+    "楽天ブックス",
+    "楽天市場",
+    "配送のお知らせ",
+    "発送のお知らせ",
+    "お届けのお知らせ",
 ]
 
 
