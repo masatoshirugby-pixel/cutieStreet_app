@@ -38,7 +38,7 @@ HEADERS = {
     )
 }
 
-MAX_DETAIL_PAGES = 20  # 1つの一覧ページから追跡する詳細ページの上限
+MAX_DETAIL_PAGES = 50  # 1つの一覧ページから追跡する詳細ページの上限
 
 
 def _fetch_soup(url: str) -> BeautifulSoup | None:

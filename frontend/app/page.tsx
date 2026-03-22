@@ -35,7 +35,9 @@ export default async function CutieStreetPage() {
       </nav>
 
       <div className="max-w-5xl mx-auto px-4 py-8">
-        <EmailPanel emails={emails} accentColor="pink" />
+        <div className="flex justify-end mb-3">
+          <EmailPanel emails={emails} accentColor="pink" />
+        </div>
         {error ? (
           <p className="text-center text-red-500">{error}</p>
         ) : (

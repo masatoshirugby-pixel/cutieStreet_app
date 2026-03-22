@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { EmailItem } from "@/lib/api";
 
 function formatReceivedAt(iso: string) {
@@ -11,9 +14,9 @@ function formatReceivedAt(iso: string) {
 }
 
 function formatDeadline(iso: string) {
-  return new Date(iso).toLocaleDateString("ja-JP", {
+  return new Date(iso + "T00:00:00").toLocaleDateString("ja-JP", {
     timeZone: "Asia/Tokyo",
-    month: "long",
+    month: "numeric",
     day: "numeric",
     weekday: "short",
   });
@@ -25,51 +28,61 @@ interface Props {
 }
 
 export default function EmailPanel({ emails, accentColor }: Props) {
+  const [open, setOpen] = useState(false);
+
   if (emails.length === 0) return null;
 
-  const borderClass = `border-${accentColor}-200`;
-  const badgeClass = `bg-${accentColor}-500 text-white`;
-  const deadlineClass = `text-${accentColor}-600`;
+  const withDeadline = emails.filter((e) => e.deadline_date);
 
   return (
-    <div className={`mb-6 rounded-2xl border ${borderClass} bg-white shadow-sm overflow-hidden`}>
-      {/* ヘッダー */}
-      <div className={`px-4 py-3 bg-${accentColor}-50 border-b ${borderClass} flex items-center gap-2`}>
-        <span className="text-sm font-semibold text-gray-700">📧 関連メール</span>
-        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${badgeClass}`}>
-          {emails.length}件
+    <div className="relative inline-block">
+      {/* バッジボタン */}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-white border border-${accentColor}-300 text-${accentColor}-700 shadow-sm hover:shadow-md transition-shadow`}
+      >
+        📧
+        <span>メール</span>
+        <span className={`bg-${accentColor}-500 text-white rounded-full px-1.5 py-0.5 text-xs`}>
+          {emails.length}
         </span>
-      </div>
+        {withDeadline.length > 0 && (
+          <span className="bg-red-500 text-white rounded-full px-1.5 py-0.5 text-xs">
+            締切 {withDeadline.length}
+          </span>
+        )}
+        <span className="text-gray-400">{open ? "▲" : "▼"}</span>
+      </button>
 
-      {/* メール一覧 */}
-      <ul className="divide-y divide-gray-100">
-        {emails.map((mail) => (
-          <li key={mail.id} className="px-4 py-3">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-800 truncate">
+      {/* ドロップダウン */}
+      {open && (
+        <div className="absolute right-0 top-9 z-50 w-80 rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden">
+          <ul className="divide-y divide-gray-100 max-h-72 overflow-y-auto">
+            {emails.map((mail) => (
+              <li key={mail.id} className="px-3 py-2.5">
+                <p className="text-xs font-medium text-gray-800 truncate">
                   {mail.subject ?? "(件名なし)"}
                 </p>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {mail.sender ?? ""} · {formatReceivedAt(mail.received_at)}
-                </p>
+                <div className="flex items-center justify-between mt-0.5">
+                  <p className="text-xs text-gray-400">
+                    {formatReceivedAt(mail.received_at)}
+                  </p>
+                  {mail.deadline_date && (
+                    <span className="text-xs font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded-full">
+                      締切 {formatDeadline(mail.deadline_date)}
+                    </span>
+                  )}
+                </div>
                 {mail.body_preview && (
                   <p className="text-xs text-gray-500 mt-1 line-clamp-2">
                     {mail.body_preview}
                   </p>
                 )}
-              </div>
-              {mail.deadline_date && (
-                <div className="shrink-0 text-right">
-                  <span className="text-xs font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-full whitespace-nowrap">
-                    締切 {formatDeadline(mail.deadline_date)}
-                  </span>
-                </div>
-              )}
-            </div>
-          </li>
-        ))}
-      </ul>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
