@@ -26,6 +26,7 @@ _DATE_PATTERNS: list[tuple[re.Pattern, bool]] = [
     (re.compile(r"(\d{4})\.(\d{1,2})\.(\d{1,2})"), True),             # 2026.03.07
     (re.compile(r"(\d{1,2})月\s*(\d{1,2})日"), False),                # 3月21日
     (re.compile(r"(?<!\d)(\d{1,2})\s*/\s*(\d{1,2})(?!\d)"), False),  # 3/21 or "3 /21"
+    (re.compile(r"(?<!\d)(\d{2})\s+(\d{2})\s+\[[A-Z]{2,3}\]"), False),  # 03 01 [SUN]
 ]
 
 # 曜日・補助キーワード（日付の直後に現れやすい）
@@ -66,7 +67,10 @@ def extract_event_dates(text: str) -> list[date]:
 
 
 def extract_event_date(text: str) -> date | None:
-    """最初に見つかったイベント日付を返す。なければ None。"""
+    """イベント日付を返す。タイトル部分（冒頭200文字）を優先し、なければ全文から最初の日付を返す。"""
+    head_dates = extract_event_dates(text[:200])
+    if head_dates:
+        return head_dates[0]
     dates = extract_event_dates(text)
     return dates[0] if dates else None
 
