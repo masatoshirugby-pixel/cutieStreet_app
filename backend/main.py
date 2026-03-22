@@ -70,6 +70,17 @@ async def manual_fetch(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/fetch/web")
+async def manual_fetch_web():
+    """手動トリガー: Webスクレイピング（スケジュールページ）のみ実行。X APIは呼ばない。"""
+    try:
+        count = await asyncio.to_thread(scheduler.run_web_pipeline)
+        return {"message": f"{count} 件のイベントを保存しました"}
+    except Exception as e:
+        logger.error(f"/fetch/web エラー: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/emails", response_model=list[EmailResponse])
 def get_emails(account: str = Query(default=None)):
     return db.get_emails(account=account)

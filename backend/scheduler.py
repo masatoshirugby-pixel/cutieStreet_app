@@ -220,6 +220,18 @@ def run_email_pipeline() -> int:
 # 全体パイプライン
 # -----------------------------------------------------------------------
 
+def run_web_pipeline() -> int:
+    """Web スクレイピング（スケジュールページ）のみ実行。X API は呼ばない。"""
+    total = 0
+    for account in ACCOUNTS:
+        total += run_web_for_account(account)
+    deleted = db.delete_expired_events()
+    if deleted:
+        logger.info(f"期限切れイベント {deleted} 件を削除しました")
+    logger.info(f"[web pipeline] 合計 {total} 件保存")
+    return total
+
+
 def run_pipeline(
     start_time: str | None = None,
     max_results: int = 10,
