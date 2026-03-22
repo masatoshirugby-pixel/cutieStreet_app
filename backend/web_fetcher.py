@@ -110,12 +110,20 @@ def _get_article_links(soup: BeautifulSoup, base_url: str) -> list[str]:
 
 
 def _soup_to_tweet(url: str, soup: BeautifulSoup) -> TweetData:
-    title = soup.title.string.strip() if soup.title else ""
+    # <title> タグ
+    page_title = soup.title.string.strip() if soup.title else ""
+    # 記事タイトル: h1 > h2 > h3 の順で取得（サイトによって異なるため全て結合）
+    headings = " ".join(
+        tag.get_text(strip=True)
+        for tag in soup.find_all(["h1", "h2", "h3"])
+    )
     body = soup.get_text(separator="\n", strip=True)[:2000]
     post_id = f"web_{hashlib.md5(url.encode()).hexdigest()[:12]}"
+    # headings を先頭に置くことで日付抽出の精度を上げる
+    post_text = f"{page_title}\n{headings}\n{body}"
     return TweetData(
         post_id=post_id,
-        post_text=f"{title}\n{body}",
+        post_text=post_text,
         posted_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         image_url=None,
     )
