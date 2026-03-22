@@ -75,6 +75,9 @@ def _ensure_deadline_record(tweet, account: str, source: str) -> None:
     else:
         post_url = ""
     for idx, (label, deadline_date) in enumerate(entries):
+        # 締切日はイベント日より前でなければならない
+        if event_date and deadline_date >= event_date:
+            continue
         if deadline_date == event_date:
             continue
         suffix = "_deadline" if idx == 0 else f"_deadline_{idx}"
@@ -222,6 +225,9 @@ def _save_tweet_data(tweets, account: str, source: str) -> int:
             if source != "web":
                 for idx, (label, deadline_date) in enumerate(extract_deadline_dates(tweet.post_text)):
                     if deadline_date == event_date:
+                        continue
+                    # 締切日はイベント日より前でなければならない
+                    if event_date and deadline_date >= event_date:
                         continue
                     suffix = "_deadline" if idx == 0 else f"_deadline_{idx}"
                     deadline_id = f"{tweet.post_id}{suffix}"
