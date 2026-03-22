@@ -21,9 +21,10 @@ logger = logging.getLogger(__name__)
 # パターン定義: (regex, has_year)
 # 対応例: 2026年3月21日 / 3月21日 / 2026/3/21 / 3/21
 _DATE_PATTERNS: list[tuple[re.Pattern, bool]] = [
-    (re.compile(r"(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日"), True),   # 2026年3月21日
-    (re.compile(r"(\d{4})/\s*(\d{1,2})/\s*(\d{1,2})"), True),       # 2026/3/21
-    (re.compile(r"(\d{1,2})月\s*(\d{1,2})日"), False),               # 3月21日
+    (re.compile(r"(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日"), True),    # 2026年3月21日
+    (re.compile(r"(\d{4})/\s*(\d{1,2})/\s*(\d{1,2})"), True),        # 2026/3/21
+    (re.compile(r"(\d{4})\.(\d{1,2})\.(\d{1,2})"), True),             # 2026.03.07
+    (re.compile(r"(\d{1,2})月\s*(\d{1,2})日"), False),                # 3月21日
     (re.compile(r"(?<!\d)(\d{1,2})\s*/\s*(\d{1,2})(?!\d)"), False),  # 3/21 or "3 /21"
 ]
 
