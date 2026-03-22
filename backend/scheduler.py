@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 
 import db
 import x_fetcher
-import youtube_fetcher
 import web_fetcher
 import email_fetcher
 import claude_judge
@@ -36,17 +35,6 @@ def run_x_for_account(
         logger.info(f"[X:{account}] 新規ツイートなし。スキップ")
         return 0
     return _save_tweet_data(tweets, account, source="x")
-
-
-# -----------------------------------------------------------------------
-# YouTube パイプライン
-# -----------------------------------------------------------------------
-
-def run_youtube_for_account(account: str, published_after: str | None = None) -> int:
-    videos = youtube_fetcher.fetch_latest_videos(account, published_after=published_after)
-    if not videos:
-        return 0
-    return _save_tweet_data(videos, account, source="youtube")
 
 
 # -----------------------------------------------------------------------
@@ -201,7 +189,6 @@ def run_pipeline(
     total = 0
     for account in ACCOUNTS:
         total += run_x_for_account(account, start_time=start_time, max_results=max_results)
-        total += run_youtube_for_account(account)
         total += run_web_for_account(account)
 
     total += run_email_pipeline()
