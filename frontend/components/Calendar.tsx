@@ -319,7 +319,9 @@ export default function Calendar({ events, accentColor }: Props) {
                         CATEGORY_COLORS[ev.category ?? ""] ?? CATEGORY_COLORS["その他イベント"]
                       } ${selected?.post_id === ev.post_id ? "ring-2 ring-offset-1 ring-gray-400" : ""}`}
                     >
-                      {ev.category === "申込締切" && ev.venue ? ev.venue : (ev.category ?? "イベント")}
+                      {ev.category === "申込締切" && ev.venue
+                        ? ev.venue
+                        : `${ev.category ?? "イベント"}${ev.category !== "申込締切" && ev.post_text?.includes("先着") ? "（先着）" : ""}`}
                     </button>
                   ))}
                 </div>
@@ -365,15 +367,22 @@ export default function Calendar({ events, accentColor }: Props) {
         {selected ? (
           <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-5 sticky top-4">
             {/* カテゴリ */}
-            {selected.category && (
-              <span
-                className={`text-xs font-bold px-2 py-1 rounded-full ${
-                  CATEGORY_COLORS[selected.category] ?? CATEGORY_COLORS["その他イベント"]
-                }`}
-              >
-                {selected.category}
-              </span>
-            )}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {selected.category && (
+                <span
+                  className={`text-xs font-bold px-2 py-1 rounded-full ${
+                    CATEGORY_COLORS[selected.category] ?? CATEGORY_COLORS["その他イベント"]
+                  }`}
+                >
+                  {selected.category}
+                </span>
+              )}
+              {selected.category !== "申込締切" && selected.post_text?.includes("先着") && (
+                <span className="text-xs font-bold px-2 py-1 rounded-full bg-green-100 text-green-700">
+                  先着順
+                </span>
+              )}
+            </div>
 
             {/* 申込締切クリック時：対象イベント情報を表示 */}
             {selected.category === "申込締切" ? (

@@ -327,7 +327,7 @@ def run_deadline_backfill() -> int:
     for event in events:
         entries = extract_deadline_dates(event.post_text)
         # stored post_text が切り詰められている可能性があるため、news記事は詳細ページを再取得して全文チェック
-        if not entries and event.source == "news" and event.post_id.startswith("https://"):
+        if not entries and event.source in ("news", "web") and event.post_id.startswith("https://"):
             try:
                 resp = requests.get(
                     event.post_id,

@@ -148,13 +148,13 @@ def get_events(account: Optional[str] = None, limit: int = 1000) -> list[EventRe
 
 
 def get_news_without_deadlines() -> list[EventResponse]:
-    """締切レコードが未作成の news イベントを全件返す（バックフィル用）"""
+    """締切レコードが未作成の news/x/web イベントを全件返す（バックフィル用）"""
     with get_conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 """
                 SELECT e.* FROM events e
-                WHERE e.source IN ('news', 'x')
+                WHERE e.source IN ('news', 'x', 'web')
                   AND e.is_event = TRUE
                   AND e.category != '申込締切'
                   AND NOT EXISTS (
@@ -180,11 +180,11 @@ def get_latest_post_id(account: str) -> Optional[str]:
 
 
 def delete_web_events(account: str) -> int:
-    """スケジュールページ由来の web イベントを全削除（毎回再取得するため）"""
+    """スケジュールページ由来の web イベントを全削除（毎回再取得するため）。申込締切レコードは保持。"""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "DELETE FROM events WHERE account = %s AND source = 'web'",
+                "DELETE FROM events WHERE account = %s AND source = 'web' AND category != '申込締切'",
                 (account,),
             )
             return cur.rowcount
