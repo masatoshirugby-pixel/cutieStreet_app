@@ -34,8 +34,15 @@ _DATE_CONTEXT = re.compile(r"[（(][月火水木金土日][）)]|開催|開場|�
 
 # 開催日を示す文脈キーワード（直後に日付が来やすい）
 _EVENT_DATE_CONTEXT_KEYWORDS = re.compile(
-    r"(開催日程|開催日時|開催日|実施日時|実施日|イベント日|日時|日程|開催時間|開演日"
-    r"|申込締切|申込期限|申し込み締切|申し込み期限|受付締切|受付期限|応募締切|応募期限|締切日|締切|期限)\s*[：:：\s]?\s*"
+    r"(開催日程|開催日時|開催日|実施日時|実施日|イベント日|日時|日程|開催時間|開演日)\s*[：:：\s]?\s*"
+)
+
+# 申込締切日を示す文脈キーワード
+_DEADLINE_CONTEXT_KEYWORDS = re.compile(
+    r"(申込締切|申込〆切|申し込み締切|申し込み〆切|申込期限|申し込み期限"
+    r"|受付締切|受付〆切|受付終了日?|受付期限|受付終了"
+    r"|応募締切|応募〆切|応募期限"
+    r"|締め切り|〆切|締切日時?|締切)\s*[：:：\s]?\s*"
 )
 # 文脈キーワードから何文字以内の日付を「開催日」と見なすか
 _CONTEXT_WINDOW = 60
@@ -125,6 +132,41 @@ def extract_event_date(text: str) -> date | None:
         return head_dates[0]
     dates = extract_event_dates(text)
     return dates[0] if dates else None
+
+
+def extract_deadline_date(text: str) -> date | None:
+    """
+    投稿テキストから申込締切日を抽出する。
+    「締め切り」「受付終了」「申込期限」等のキーワード直後の日付を返す。
+    """
+    today = datetime.now(timezone.utc).date()
+
+    for kw_match in _DEADLINE_CONTEXT_KEYWORDS.finditer(text):
+        start = kw_match.end()
+        window = text[start: start + _CONTEXT_WINDOW]
+
+        for pat, has_year in _DATE_PATTERNS:
+            m = pat.search(window)
+            if not m:
+                continue
+            try:
+                if has_year:
+                    year, month, day = int(m.group(1)), int(m.group(2)), int(m.group(3))
+                else:
+                    month, day = int(m.group(1)), int(m.group(2))
+                    year = today.year
+                    candidate = date(year, month, day)
+                    if (today - candidate).days > 90:
+                        year += 1
+
+                d = date(year, month, day)
+                if (today - d).days > 365 * 5:
+                    continue
+                return d
+            except ValueError:
+                pass
+
+    return None
 
 
 # -----------------------------------------------------------------------

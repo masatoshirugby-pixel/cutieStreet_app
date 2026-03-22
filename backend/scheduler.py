@@ -8,7 +8,7 @@ import x_fetcher
 import web_fetcher
 import email_fetcher
 import claude_judge
-from event_utils import extract_event_date, extract_venue, is_duplicate, ACCOUNTS
+from event_utils import extract_event_date, extract_deadline_date, extract_venue, is_duplicate, ACCOUNTS
 from models import EventRecord, EmailRecord, JudgementResult
 
 logger = logging.getLogger(__name__)
@@ -170,6 +170,33 @@ def _save_tweet_data(tweets, account: str, source: str) -> int:
                 f"[{source}:{account}] 保存: {tweet.post_id} "
                 f"[{judgement.category}] event_date={event_date_str}"
             )
+
+            # 投稿本文から申込締切日を抽出して別レコードとして保存
+            # webスケジュールページは締切情報を含まないためスキップ
+            if source != "web":
+                deadline_date = extract_deadline_date(tweet.post_text)
+                if deadline_date and deadline_date != event_date:
+                    deadline_id = f"{tweet.post_id}_deadline"
+                    if not db.is_post_exists(deadline_id):
+                        deadline_record = EventRecord(
+                            post_id=deadline_id,
+                            post_text=tweet.post_text,
+                            post_url=post_url,
+                            posted_at=tweet.posted_at,
+                            is_event=True,
+                            account=account,
+                            category="申込締切",
+                            event_date=deadline_date.isoformat(),
+                            venue=None,
+                            image_url=None,
+                            source=source,
+                            created_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                        )
+                        if db.save_event(deadline_record):
+                            logger.info(
+                                f"[{source}:{account}] 申込締切保存: {deadline_id} "
+                                f"deadline={deadline_date}"
+                            )
 
     return saved
 
