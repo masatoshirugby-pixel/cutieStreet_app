@@ -51,15 +51,53 @@ def _fetch_soup(url: str) -> BeautifulSoup | None:
         return None
 
 
-def _get_article_links(soup: BeautifulSoup, base_url: str) -> list[str]:
-    """一覧ページから同一ドメインの詳細ページリンクを抽出する"""
+def _extract_links_from_next_data(soup: BeautifulSoup, base_url: str) -> list[str]:
+    """
+    Next.js の __NEXT_DATA__ JSON からリンクを抽出する。
+    asobisystem.com は Next.js 製のため通常の <a> タグでは取得できない。
+    """
+    import json
     base_domain = urlparse(base_url).netloc
-    seen: set[str] = set()
     links: list[str] = []
 
+    script = soup.find("script", {"id": "__NEXT_DATA__"})
+    if not script:
+        return links
+
+    try:
+        data = json.loads(script.string)
+        # JSON を文字列化して URL パターンを正規表現で抽出
+        import re
+        text = json.dumps(data)
+        # /news/detail/XXXXX や /live_information/schedule/detail/XXXXX 等のパス
+        paths = re.findall(r'"(/(?:news|live_information)[^"]{5,80})"', text)
+        seen: set[str] = set()
+        for path in paths:
+            if "#" in path or "?" in path:
+                continue
+            full = f"https://{base_domain}{path}"
+            if full not in seen and full != base_url:
+                seen.add(full)
+                links.append(full)
+    except Exception as e:
+        logger.warning(f"__NEXT_DATA__ パース失敗 {base_url}: {e}")
+
+    return links[:MAX_DETAIL_PAGES]
+
+
+def _get_article_links(soup: BeautifulSoup, base_url: str) -> list[str]:
+    """一覧ページから詳細ページリンクを抽出する（Next.js対応）"""
+    # まず __NEXT_DATA__ から試みる
+    links = _extract_links_from_next_data(soup, base_url)
+    if links:
+        return links
+
+    # フォールバック: 通常の <a> タグ
+    base_domain = urlparse(base_url).netloc
+    seen: set[str] = set()
+    result: list[str] = []
     for a in soup.find_all("a", href=True):
         full = urljoin(base_url, a["href"])
-        # 同一ドメイン・重複なし・一覧URL自体は除外
         if (
             urlparse(full).netloc == base_domain
             and full not in seen
@@ -67,9 +105,8 @@ def _get_article_links(soup: BeautifulSoup, base_url: str) -> list[str]:
             and "#" not in full
         ):
             seen.add(full)
-            links.append(full)
-
-    return links[:MAX_DETAIL_PAGES]
+            result.append(full)
+    return result[:MAX_DETAIL_PAGES]
 
 
 def _soup_to_tweet(url: str, soup: BeautifulSoup) -> TweetData:
