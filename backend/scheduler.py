@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 from datetime import datetime, timezone
 
 import db
@@ -8,11 +9,43 @@ import web_fetcher
 import email_fetcher
 import claude_judge
 from event_utils import extract_event_date, extract_venue, is_duplicate, ACCOUNTS
-from models import EventRecord, EmailRecord
+from models import EventRecord, EmailRecord, JudgementResult
 
 logger = logging.getLogger(__name__)
 
 FETCH_HOUR = 8  # 毎日 08:00 UTC に取得
+
+# -----------------------------------------------------------------------
+# スケジュールページ用カテゴリ判定（claude_judge を使わず TYPE から直接決定）
+# -----------------------------------------------------------------------
+
+_SCHED_TYPE_RE = re.compile(r'\[[A-Z]{2,3}\]\s+(LIVE|EVENT|TV|RADIO|VIDEO)', re.IGNORECASE)
+
+
+def _judge_schedule(post_text: str) -> JudgementResult | None:
+    """
+    スケジュールページのテキスト ("04 05 [SUN] LIVE ...") からカテゴリを決定する。
+    VIDEO など不要なタイプは None を返す（保存スキップ）。
+    """
+    m = _SCHED_TYPE_RE.search(post_text)
+    type_str = m.group(1).upper() if m else "EVENT"
+
+    if type_str == "VIDEO":
+        return None  # ビデオはスキップ
+
+    if type_str == "LIVE":
+        return JudgementResult(is_event=True, category="ライブ")
+
+    if type_str in ("TV", "RADIO"):
+        return JudgementResult(is_event=True, category="メディア出演")
+
+    # EVENT: タイトルのキーワードでさらに分類
+    if any(kw in post_text for kw in ["握手", "チェキ", "特典会", "お渡し", "ハイタッチ"]):
+        return JudgementResult(is_event=True, category="握手会・チェキ会")
+    if any(kw in post_text for kw in ["リリースイベント", "リリイベ", "発売記念", "インストア"]):
+        return JudgementResult(is_event=True, category="リリースイベント")
+
+    return JudgementResult(is_event=True, category="その他イベント")
 
 
 # -----------------------------------------------------------------------
@@ -64,10 +97,16 @@ def _save_tweet_data(tweets, account: str, source: str) -> int:
         if db.is_post_exists(tweet.post_id):
             continue
 
-        judgement = claude_judge.judge_tweet(tweet.post_text)
-        if not judgement.is_event:
-            logger.info(f"[{source}:{account}] 非イベント判定: {tweet.post_id}")
-            continue
+        if source == "web":
+            # スケジュールページは TYPE（LIVE/EVENT/TV/RADIO）から直接カテゴリを決定
+            judgement = _judge_schedule(tweet.post_text)
+            if judgement is None:
+                continue  # VIDEO など不要なタイプはスキップ
+        else:
+            judgement = claude_judge.judge_tweet(tweet.post_text)
+            if not judgement.is_event:
+                logger.info(f"[{source}:{account}] 非イベント判定: {tweet.post_id}")
+                continue
 
         event_date = extract_event_date(tweet.post_text)
         event_date_str = event_date.isoformat() if event_date else None
