@@ -115,26 +115,27 @@ def _fetch_schedule_from_list(url: str) -> list[TweetData]:
         ))
 
     # 翌月も取得
-    next_soup = _fetch_soup(_next_month_url(url))
-        if next_soup:
-            for a in next_soup.find_all("a", href=True):
-                href = a["href"]
-                if "/live_information/detail/" not in href:
-                    continue
-                post_text = a.get_text(separator=" ", strip=True)
-                if not post_text or not _DATE_VAL_RE.search(post_text):
-                    continue
-                full_url = urljoin(next_url, href)
-                post_id = full_url
-                if post_id in seen_ids:
-                    continue
-                seen_ids.add(post_id)
-                results.append(TweetData(
-                    post_id=post_id,
-                    post_text=post_text,
-                    posted_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-                    image_url=None,
-                ))
+    next_url = _next_month_url(url)
+    next_soup = _fetch_soup(next_url)
+    if next_soup:
+        for a in next_soup.find_all("a", href=True):
+            href = a["href"]
+            if "/live_information/detail/" not in href:
+                continue
+            post_text = a.get_text(separator=" ", strip=True)
+            if not post_text or not _DATE_VAL_RE.search(post_text):
+                continue
+            full_url = urljoin(next_url, href)
+            post_id = full_url
+            if post_id in seen_ids:
+                continue
+            seen_ids.add(post_id)
+            results.append(TweetData(
+                post_id=post_id,
+                post_text=post_text,
+                posted_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                image_url=None,
+            ))
 
     logger.info(f"[Web:schedule] {url}: {len(results)} 件")
     return results
