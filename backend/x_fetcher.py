@@ -116,8 +116,7 @@ def fetch_latest_tweets(
         meta = getattr(resp, "meta", None)
         next_token = meta.get("next_token") if meta else None
 
-        # ページネーション不要（since_id 指定時は1ページのみ）
-        if not next_token or not start_time:
+        if not next_token:
             break
 
     logger.info(f"[{username}] {len(tweets)} 件取得（{page}ページ）")
