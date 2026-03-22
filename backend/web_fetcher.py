@@ -9,7 +9,7 @@ import hashlib
 import logging
 import re
 from datetime import datetime, timezone
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin
 
 import requests
 from bs4 import BeautifulSoup
@@ -69,15 +69,14 @@ def _fetch_soup(url: str) -> BeautifulSoup | None:
 # スケジュール一覧: <a href="/live_information/detail/..."> を直接解析
 # -----------------------------------------------------------------------
 
-def _find_next_month_url(soup: BeautifulSoup, base_url: str) -> str | None:
-    """スケジュールページの翌月リンクを探して返す（存在しない場合は None）"""
-    base_path = urlparse(base_url).path
-    for a in soup.find_all("a", href=True):
-        href = a["href"]
-        # 翌月リンクは /live_information/schedule/list/ + クエリパラメータの形式
-        if "/live_information/schedule/list/" in href and "?" in href:
-            return urljoin(base_url, href)
-    return None
+def _next_month_url(base_url: str) -> str:
+    """翌月のスケジュールURLを今日の日付から直接構築する"""
+    now = datetime.now(timezone.utc)
+    if now.month == 12:
+        year, month = now.year + 1, 1
+    else:
+        year, month = now.year, now.month + 1
+    return f"{base_url}?viewMode=default&year={year}&month={month:02d}"
 
 
 def _fetch_schedule_from_list(url: str) -> list[TweetData]:
@@ -115,10 +114,8 @@ def _fetch_schedule_from_list(url: str) -> list[TweetData]:
             image_url=None,
         ))
 
-    # 翌月があればそちらも取得
-    next_url = _find_next_month_url(soup, url)
-    if next_url:
-        next_soup = _fetch_soup(next_url)
+    # 翌月も取得
+    next_soup = _fetch_soup(_next_month_url(url))
         if next_soup:
             for a in next_soup.find_all("a", href=True):
                 href = a["href"]
