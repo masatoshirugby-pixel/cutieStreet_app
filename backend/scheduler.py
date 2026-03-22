@@ -59,6 +59,47 @@ def _judge_schedule(post_text: str) -> JudgementResult | None:
 
 
 # -----------------------------------------------------------------------
+# 締切レコード補完（本体記事が既存の場合に呼ぶ）
+# -----------------------------------------------------------------------
+
+def _ensure_deadline_record(tweet, account: str, source: str) -> None:
+    """本体記事が既にDBに存在するとき、締切レコードだけ未作成なら保存する。"""
+    deadline_id = f"{tweet.post_id}_deadline"
+    if db.is_post_exists(deadline_id):
+        return
+    deadline_date = extract_deadline_date(tweet.post_text)
+    if not deadline_date:
+        return
+    event_date = extract_event_date(tweet.post_text)
+    if deadline_date == event_date:
+        return
+    if source == "x":
+        post_url = f"https://x.com/{account}/status/{tweet.post_id}"
+    elif tweet.post_id.startswith("https://"):
+        post_url = tweet.post_id
+    else:
+        post_url = ""
+    deadline_record = EventRecord(
+        post_id=deadline_id,
+        post_text=tweet.post_text,
+        post_url=post_url,
+        posted_at=tweet.posted_at,
+        is_event=True,
+        account=account,
+        category="申込締切",
+        event_date=deadline_date.isoformat(),
+        venue=None,
+        image_url=None,
+        source=source,
+        created_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+    )
+    if db.save_event(deadline_record):
+        logger.info(
+            f"[{source}:{account}] 申込締切補完: {deadline_id} deadline={deadline_date}"
+        )
+
+
+# -----------------------------------------------------------------------
 # X パイプライン
 # -----------------------------------------------------------------------
 
@@ -109,6 +150,9 @@ def _save_tweet_data(tweets, account: str, source: str) -> int:
 
     for tweet in tweets:
         if db.is_post_exists(tweet.post_id):
+            # 本体記事が既存でも、締切レコードが未作成なら生成する
+            if source != "web":
+                _ensure_deadline_record(tweet, account, source)
             continue
 
         if source == "web":
