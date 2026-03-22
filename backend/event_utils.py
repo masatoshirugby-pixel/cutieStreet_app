@@ -158,14 +158,14 @@ def is_duplicate(
     new_category: str | None,
     new_event_date: date | None,
     existing_records: list[dict],
-    date_match_threshold: int = 3,     # 日付が一致するとみなす差異（日）
+    date_match_threshold: int = 0,     # 同日のみ重複とみなす（日付ズレは許容しない）
     similarity_threshold: float = 0.35, # 日付なし時の Jaccard 閾値
 ) -> bool:
     """
     新規投稿が既存DBレコードと同一イベントかどうかを判定する。
 
     判定ロジック:
-    1. 日付あり: 同カテゴリ & 日付が±date_match_threshold 日以内 → 重複
+    1. 日付あり: 同カテゴリ & 同日 → 重複
     2. 日付なし: 同カテゴリ & Jaccard類似度 >= similarity_threshold → 重複
     """
     for rec in existing_records:
