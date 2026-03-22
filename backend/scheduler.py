@@ -78,17 +78,11 @@ def _save_tweet_data(tweets, account: str, source: str) -> int:
             logger.info(f"[{source}:{account}] 重複スキップ: {tweet.post_id}")
             continue
 
-        post_url = (
-            f"https://x.com/{account}/status/{tweet.post_id}"
-            if source == "x"
-            else tweet.post_id  # YouTube/Web は post_id に URL を格納
-        )
-        # YouTube の場合は正しい URL を組み立て
-        if source == "youtube" and tweet.post_id.startswith("yt_"):
-            video_id = tweet.post_id[3:]
-            post_url = f"https://www.youtube.com/watch?v={video_id}"
-        # Web の場合は post_text から元 URL を復元できないので post_id をキーとして使用
-        if source == "web":
+        if source == "x":
+            post_url = f"https://x.com/{account}/status/{tweet.post_id}"
+        elif source == "web" and tweet.post_id.startswith("https://"):
+            post_url = tweet.post_id  # post_id が詳細ページの完全URL
+        else:
             post_url = ""
 
         record = EventRecord(

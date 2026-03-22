@@ -101,8 +101,9 @@ def _fetch_schedule_from_list(url: str) -> list[TweetData]:
         if not post_text or not _DATE_VAL_RE.search(post_text):
             continue
 
-        # 詳細ページのパスをキーとして安定した post_id を生成
-        post_id = f"sched_{hashlib.md5(href.encode()).hexdigest()[:12]}"
+        # ドメイン込みの完全URLを post_id に使用（グループ間の衝突を防ぐ＋リンク先として利用可能）
+        full_url = urljoin(url, href)
+        post_id = full_url
         if post_id in seen_ids:
             continue
         seen_ids.add(post_id)
@@ -126,7 +127,8 @@ def _fetch_schedule_from_list(url: str) -> list[TweetData]:
                 post_text = a.get_text(separator=" ", strip=True)
                 if not post_text or not _DATE_VAL_RE.search(post_text):
                     continue
-                post_id = f"sched_{hashlib.md5(href.encode()).hexdigest()[:12]}"
+                full_url = urljoin(next_url, href)
+                post_id = full_url
                 if post_id in seen_ids:
                     continue
                 seen_ids.add(post_id)

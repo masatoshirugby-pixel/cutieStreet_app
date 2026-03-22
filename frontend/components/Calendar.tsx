@@ -220,15 +220,17 @@ export default function Calendar({ events, accentColor }: Props) {
               </p>
             </div>
 
-            {/* Xリンク */}
-            <a
-              href={selected.post_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block mt-3 text-xs text-blue-500 hover:text-blue-700 underline"
-            >
-              𝕏 元の投稿を見る →
-            </a>
+            {/* ソースリンク */}
+            {selected.post_url && (
+              <a
+                href={selected.post_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block mt-3 text-xs text-blue-500 hover:text-blue-700 underline"
+              >
+                {selected.source === "x" ? "𝕏 元の投稿を見る →" : "🌐 公式ページを見る →"}
+              </a>
+            )}
           </div>
         ) : (
           <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center text-sm text-gray-400 sticky top-4">
