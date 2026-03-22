@@ -188,8 +188,9 @@ def run_pipeline(
 ) -> int:
     total = 0
     for account in ACCOUNTS:
-        total += run_x_for_account(account, start_time=start_time, max_results=max_results)
+        # スケジュールを先に保存し、X の重複チェックに活用する
         total += run_web_for_account(account)
+        total += run_x_for_account(account, start_time=start_time, max_results=max_results)
 
     total += run_email_pipeline()
 
