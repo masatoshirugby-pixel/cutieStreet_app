@@ -80,9 +80,13 @@ def run_web_for_account(account: str) -> int:
     if deleted:
         logger.info(f"[web:{account}] 旧スケジュールイベント {deleted} 件を削除")
     pages = web_fetcher.fetch_web_events(account)
-    if not pages:
-        return 0
-    return _save_tweet_data(pages, account, source="web")
+    schedule_saved = _save_tweet_data(pages, account, source="web") if pages else 0
+
+    # ニュースページは差分取得（is_post_exists でスキップ）
+    news = web_fetcher.fetch_news_events(account)
+    news_saved = _save_tweet_data(news, account, source="news") if news else 0
+
+    return schedule_saved + news_saved
 
 
 # -----------------------------------------------------------------------
@@ -103,6 +107,7 @@ def _save_tweet_data(tweets, account: str, source: str) -> int:
             if judgement is None:
                 continue  # VIDEO など不要なタイプはスキップ
         else:
+            # X・ニュースはキーワードマッチング＋形態素解析で判定
             judgement = claude_judge.judge_tweet(tweet.post_text)
             if not judgement.is_event:
                 logger.info(f"[{source}:{account}] 非イベント判定: {tweet.post_id}")
@@ -124,7 +129,7 @@ def _save_tweet_data(tweets, account: str, source: str) -> int:
 
         if source == "x":
             post_url = f"https://x.com/{account}/status/{tweet.post_id}"
-        elif source == "web" and tweet.post_id.startswith("https://"):
+        elif source in ("web", "news") and tweet.post_id.startswith("https://"):
             post_url = tweet.post_id  # post_id が詳細ページの完全URL
         else:
             post_url = ""

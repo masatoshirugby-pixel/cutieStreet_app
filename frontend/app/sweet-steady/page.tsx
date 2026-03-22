@@ -2,6 +2,7 @@ import Image from "next/image";
 import { fetchEvents, fetchEmails, type Event } from "@/lib/api";
 import Calendar from "@/components/Calendar";
 import EmailPanel from "@/components/EmailPanel";
+import WinBanner from "@/components/WinBanner";
 
 export const revalidate = 3600;
 
@@ -33,6 +34,7 @@ export default async function SweetSteadyPage() {
       </nav>
 
       <div className="max-w-5xl mx-auto px-4 py-8">
+        <WinBanner emails={emails} />
         <div className="flex justify-end mb-3">
           <EmailPanel emails={emails} accentColor="blue" />
         </div>

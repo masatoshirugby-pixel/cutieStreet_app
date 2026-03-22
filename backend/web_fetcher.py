@@ -24,21 +24,20 @@ SCHEDULE_URLS: dict[str, str] = {
     "SWEET_STEADY":  "https://sweetsteady.asobisystem.com/live_information/schedule/list/",
 }
 
-# ニュース（一時停止中）
-# NEWS_URLS: dict[str, list[str]] = {
-#     "CUTIE_STREET_": [
-#         "https://cutiestreet.asobisystem.com/news/1/",
-#         "https://cutiestreet.asobisystem.com/news/1/?page=2",
-#     ],
-#     "CANDY_TUNE_": [
-#         "https://candytune.asobisystem.com/news/1/",
-#         "https://candytune.asobisystem.com/news/1/?page=2",
-#     ],
-#     "SWEET_STEADY": [
-#         "https://sweetsteady.asobisystem.com/news/1/",
-#         "https://sweetsteady.asobisystem.com/news/1/?page=2",
-#     ],
-# }
+NEWS_URLS: dict[str, list[str]] = {
+    "CUTIE_STREET_": [
+        "https://cutiestreet.asobisystem.com/news/1/",
+        "https://cutiestreet.asobisystem.com/news/1/?page=2",
+    ],
+    "CANDY_TUNE_": [
+        "https://candytune.asobisystem.com/news/1/",
+        "https://candytune.asobisystem.com/news/1/?page=2",
+    ],
+    "SWEET_STEADY": [
+        "https://sweetsteady.asobisystem.com/news/1/",
+        "https://sweetsteady.asobisystem.com/news/1/?page=2",
+    ],
+}
 
 HEADERS = {
     "User-Agent": (
@@ -142,20 +141,69 @@ def _fetch_schedule_from_list(url: str) -> list[TweetData]:
 
 
 # -----------------------------------------------------------------------
-# ニュース一覧（一時停止中）
+# ニュース一覧
 # -----------------------------------------------------------------------
 
-# def _extract_news_links(soup: BeautifulSoup, base_url: str) -> list[str]:
-#     ...
-#
-# def _soup_to_tweet(url: str, soup: BeautifulSoup) -> TweetData:
-#     ...
-#
-# def _fetch_news_detail(link: str) -> TweetData | None:
-#     ...
-#
-# def _fetch_news_events(news_urls: list[str]) -> list[TweetData]:
-#     ...
+def _extract_news_links(soup: BeautifulSoup, base_url: str) -> list[str]:
+    """ニュース一覧ページから詳細ページのリンクを抽出する"""
+    links: list[str] = []
+    seen: set[str] = set()
+    for a in soup.find_all("a", href=True):
+        href = a["href"]
+        if "/news/detail/" in href:
+            full_url = urljoin(base_url, href)
+            if full_url not in seen:
+                seen.add(full_url)
+                links.append(full_url)
+    return links
+
+
+def _fetch_news_detail(url: str) -> TweetData | None:
+    """ニュース詳細ページからタイトル・本文を取得する"""
+    soup = _fetch_soup(url)
+    if not soup:
+        return None
+
+    h1 = soup.find("h1")
+    title = h1.get_text(strip=True) if h1 else ""
+
+    # 本文は .section--detail を優先、なければ body 全体から取得
+    section = soup.find(class_="section--detail")
+    body_text = (
+        section.get_text(separator=" ", strip=True)
+        if section
+        else soup.get_text(separator=" ", strip=True)
+    )
+
+    post_text = f"{title}\n{body_text[:800]}" if title else body_text[:1000]
+
+    return TweetData(
+        post_id=url,
+        post_text=post_text,
+        posted_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        image_url=None,
+    )
+
+
+def _fetch_news_events(news_urls: list[str]) -> list[TweetData]:
+    """ニュース一覧ページのリンクを辿って詳細ページを全件取得する"""
+    results: list[TweetData] = []
+    seen_ids: set[str] = set()
+
+    for list_url in news_urls:
+        soup = _fetch_soup(list_url)
+        if not soup:
+            continue
+        for link in _extract_news_links(soup, list_url):
+            if link in seen_ids:
+                continue
+            seen_ids.add(link)
+            td = _fetch_news_detail(link)
+            if td:
+                results.append(td)
+
+    logger.info(f"[Web:news] {len(results)} 件取得")
+    return results
 
 
 # -----------------------------------------------------------------------
@@ -175,11 +223,19 @@ def fetch_web_events(account: str) -> list[TweetData]:
                 results.append(td)
                 seen_ids.add(td.post_id)
 
-    # ニュース（一時停止中）
-    # for td in _fetch_news_events(NEWS_URLS.get(account, [])):
-    #     if td.post_id not in seen_ids:
-    #         results.append(td)
-    #         seen_ids.add(td.post_id)
-
     logger.info(f"[Web:{account}] {len(results)} 件取得")
+    return results
+
+
+def fetch_news_events(account: str) -> list[TweetData]:
+    """ニュースページからイベント情報を取得する（差分取得）"""
+    results: list[TweetData] = []
+    seen_ids: set[str] = set()
+
+    for td in _fetch_news_events(NEWS_URLS.get(account, [])):
+        if td.post_id not in seen_ids:
+            results.append(td)
+            seen_ids.add(td.post_id)
+
+    logger.info(f"[News:{account}] {len(results)} 件取得")
     return results
