@@ -42,6 +42,10 @@ def run_x_for_account(
 # -----------------------------------------------------------------------
 
 def run_web_for_account(account: str) -> int:
+    # スケジュールページは毎回全削除→再取得して最新状態を反映
+    deleted = db.delete_web_events(account)
+    if deleted:
+        logger.info(f"[web:{account}] 旧スケジュールイベント {deleted} 件を削除")
     pages = web_fetcher.fetch_web_events(account)
     if not pages:
         return 0
@@ -69,7 +73,8 @@ def _save_tweet_data(tweets, account: str, source: str) -> int:
         event_date_str = event_date.isoformat() if event_date else None
         venue = extract_venue(tweet.post_text)
 
-        if is_duplicate(
+        # web（スケジュールページ）は公式情報なので重複チェックなし
+        if source != "web" and is_duplicate(
             new_text=tweet.post_text,
             new_category=judgement.category,
             new_event_date=event_date,

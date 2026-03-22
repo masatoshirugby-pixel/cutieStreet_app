@@ -159,6 +159,17 @@ def get_latest_post_id(account: str) -> Optional[str]:
             return row[0] if row else None
 
 
+def delete_web_events(account: str) -> int:
+    """スケジュールページ由来の web イベントを全削除（毎回再取得するため）"""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM events WHERE account = %s AND source = 'web'",
+                (account,),
+            )
+            return cur.rowcount
+
+
 def delete_expired_events() -> int:
     cutoff = (datetime.now(timezone.utc) - timedelta(days=EVENT_EXPIRY_DAYS)).date().isoformat()
     with get_conn() as conn:
