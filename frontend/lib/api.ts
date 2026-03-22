@@ -28,7 +28,7 @@ export interface Event {
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
-export async function fetchEvents(account: string, limit = 200): Promise<Event[]> {
+export async function fetchEvents(account: string, limit = 1000): Promise<Event[]> {
   const res = await fetch(
     `${BASE_URL}/events?account=${account}&limit=${limit}`,
     { next: { revalidate: 3600 } }

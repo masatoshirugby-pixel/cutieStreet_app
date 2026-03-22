@@ -121,7 +121,7 @@ def save_event(event: EventRecord) -> bool:
             return cur.rowcount > 0
 
 
-def get_events(account: Optional[str] = None, limit: int = 200) -> list[EventResponse]:
+def get_events(account: Optional[str] = None, limit: int = 1000) -> list[EventResponse]:
     with get_conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             if account:
