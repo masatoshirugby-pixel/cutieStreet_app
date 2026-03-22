@@ -111,7 +111,7 @@ def _get_article_links(soup: BeautifulSoup, base_url: str) -> list[str]:
 
 def _soup_to_tweet(url: str, soup: BeautifulSoup) -> TweetData:
     # <title> タグ
-    page_title = soup.title.string.strip() if soup.title else ""
+    page_title = soup.title.get_text(strip=True) if soup.title else ""
     # 記事タイトル: separator="" で「3\n/29」のような分断を防ぐ
     headings = " ".join(
         tag.get_text(separator="", strip=True)
