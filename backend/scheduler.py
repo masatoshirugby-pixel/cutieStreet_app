@@ -319,10 +319,33 @@ def run_email_pipeline() -> int:
 def run_deadline_backfill() -> int:
     """DB内の news/X 記事で締切レコードが未作成のものを全件補完する。"""
     from datetime import date as _date
+    import requests
+    from bs4 import BeautifulSoup
+
     events = db.get_news_without_deadlines()
     count = 0
     for event in events:
         entries = extract_deadline_dates(event.post_text)
+        # stored post_text が切り詰められている可能性があるため、news記事は詳細ページを再取得して全文チェック
+        if not entries and event.source == "news" and event.post_id.startswith("https://"):
+            try:
+                resp = requests.get(
+                    event.post_id,
+                    headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
+                    timeout=15,
+                )
+                resp.raise_for_status()
+                soup = BeautifulSoup(resp.text, "html.parser")
+                h1 = soup.find("h1")
+                title = h1.get_text(strip=True) if h1 else ""
+                section = soup.find(class_="section--detail")
+                body_text = section.get_text(separator=" ", strip=True) if section else soup.get_text(separator=" ", strip=True)
+                full_text = f"{title}\n{body_text}" if title else body_text
+                entries = extract_deadline_dates(full_text)
+                if entries:
+                    logger.info(f"[backfill] 再取得で締切発見: {event.post_id}")
+            except Exception as e:
+                logger.warning(f"[backfill] 再取得失敗 {event.post_id}: {e}")
         if not entries:
             continue
         event_date_obj = _date.fromisoformat(event.event_date) if event.event_date else None

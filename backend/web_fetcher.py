@@ -175,7 +175,7 @@ def _fetch_news_detail(url: str) -> TweetData | None:
         else soup.get_text(separator=" ", strip=True)
     )
 
-    post_text = f"{title}\n{body_text[:800]}" if title else body_text[:1000]
+    post_text = f"{title}\n{body_text[:3000]}" if title else body_text[:3000]
 
     return TweetData(
         post_id=url,
