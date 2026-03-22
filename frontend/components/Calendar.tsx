@@ -319,7 +319,7 @@ export default function Calendar({ events, accentColor }: Props) {
                         CATEGORY_COLORS[ev.category ?? ""] ?? CATEGORY_COLORS["その他イベント"]
                       } ${selected?.post_id === ev.post_id ? "ring-2 ring-offset-1 ring-gray-400" : ""}`}
                     >
-                      {ev.category ?? "イベント"}
+                      {ev.category === "申込締切" && ev.venue ? ev.venue : (ev.category ?? "イベント")}
                     </button>
                   ))}
                 </div>
@@ -380,7 +380,7 @@ export default function Calendar({ events, accentColor }: Props) {
               <>
                 {selected.event_date && (
                   <p className="text-lg font-bold text-red-600 mt-2">
-                    締切：{formatEventDate(selected.event_date)}
+                    {selected.venue ?? "締切"}：{formatEventDate(selected.event_date)}
                   </p>
                 )}
                 {linkedEvent ? (
@@ -432,7 +432,7 @@ export default function Calendar({ events, accentColor }: Props) {
                     <p className="text-xs font-bold text-red-500 mb-1">📅 申込締切</p>
                     {relatedDeadlines.map((d) => (
                       <p key={d.post_id} className="text-xs text-red-700 mt-0.5">
-                        {formatEventDate(d.event_date!)}
+                        {d.venue ?? "締切"}：{formatEventDate(d.event_date!)}
                       </p>
                     ))}
                   </div>

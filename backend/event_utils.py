@@ -38,12 +38,14 @@ _EVENT_DATE_CONTEXT_KEYWORDS = re.compile(
 )
 
 # 申込締切日を示す文脈キーワード
+# ※ 「受付」単体は除外（受付開始など開始日を誤抽出するため）
+# ※ 「1次受付」「二次受付」など数字/漢数字付きは明示的な締切期間として許容
 _DEADLINE_CONTEXT_KEYWORDS = re.compile(
     r"(申込締切|申込〆切|申し込み締切|申し込み〆切|申込期限|申し込み期限"
     r"|受付締切|受付〆切|受付終了日?|受付期限|受付終了|受付期間"
     r"|応募締切|応募〆切|応募期限|応募受付"
     r"|締め切り|〆切|締切日時?|締切"
-    r"|[次\d]?次?受付)\s*[：:：\s]?\s*"
+    r"|[一二三四五六七八九十\d]+次受付)\s*[：:：\s]?\s*"
 )
 # 日付範囲の区切り文字（～3月22日 の末尾が締切）
 _DATE_RANGE_SEP = re.compile(r"[～〜~\-－]")
@@ -161,32 +163,41 @@ def _parse_date_in_window(window: str, today: date) -> date | None:
     return None
 
 
-def extract_deadline_date(text: str) -> date | None:
+def extract_deadline_dates(text: str) -> list[tuple[str, date]]:
     """
-    投稿テキストから申込締切日を抽出する。
-    - 「締め切り」「受付」「申込期限」等のキーワード直後の日付を使用
-    - 「3月17日～3月22日」のような範囲表記は末尾（終了日）を締切とみなす
+    投稿テキストから申込締切日を全て抽出して返す。
+    Returns: [(label, date), ...] — label はマッチしたキーワード（例: "1次受付"）
+    - 範囲表記（3月17日～3月22日）は末尾（終了日）を締切とみなす
+    - 同一日付は重複除去
     """
     today = datetime.now(timezone.utc).date()
+    results: list[tuple[str, date]] = []
+    seen: set[date] = set()
 
     for kw_match in _DEADLINE_CONTEXT_KEYWORDS.finditer(text):
+        label = kw_match.group(1)
         start = kw_match.end()
-        window = text[start: start + _CONTEXT_WINDOW * 2]  # 範囲対応で広めに取る
+        window = text[start: start + _CONTEXT_WINDOW * 2]
 
-        # 範囲（～）が含まれる場合：末尾の日付を締切日とする
+        d: date | None = None
         if _DATE_RANGE_SEP.search(window):
             parts = _DATE_RANGE_SEP.split(window, maxsplit=1)
             if len(parts) == 2:
-                end_date = _parse_date_in_window(parts[1], today)
-                if end_date:
-                    return end_date
+                d = _parse_date_in_window(parts[1], today)
+        if d is None:
+            d = _parse_date_in_window(window, today)
 
-        # 範囲なし：最初に見つかった日付を締切日とする
-        d = _parse_date_in_window(window, today)
-        if d:
-            return d
+        if d and d not in seen:
+            results.append((label, d))
+            seen.add(d)
 
-    return None
+    return results
+
+
+def extract_deadline_date(text: str) -> date | None:
+    """後方互換: 最初の締切日のみ返す。"""
+    entries = extract_deadline_dates(text)
+    return entries[0][1] if entries else None
 
 
 # -----------------------------------------------------------------------
