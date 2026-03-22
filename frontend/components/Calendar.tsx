@@ -4,9 +4,14 @@ import { useState, useRef, useEffect } from "react";
 import { Event } from "@/lib/api";
 
 const CATEGORY_COLORS: Record<string, string> = {
-  ライブ: "bg-pink-400 text-white",
+  大特典会: "bg-amber-400 text-white",
+  特典会: "bg-yellow-400 text-white",
+  オンラインサイン会: "bg-teal-400 text-white",
+  単独ライブ: "bg-pink-600 text-white",
+  合同ライブ: "bg-pink-400 text-white",
+  フェス出演: "bg-lime-500 text-white",
+  ライブ: "bg-pink-500 text-white",
   リリースイベント: "bg-purple-400 text-white",
-  "握手会・チェキ会": "bg-yellow-400 text-white",
   メディア出演: "bg-blue-400 text-white",
   配信イベント: "bg-green-400 text-white",
   "物販・グッズ": "bg-orange-400 text-white",
@@ -18,15 +23,19 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 const FILTER_CATEGORIES = [
+  "大特典会",
+  "特典会",
+  "オンラインサイン会",
+  "単独ライブ",
+  "合同ライブ",
+  "フェス出演",
   "ライブ",
-  "握手会・チェキ会",
   "リリースイベント",
   "メディア出演",
   "配信イベント",
   "物販・グッズ",
   "販売・発売",
   "申込締切",
-  "その他イベント",
 ];
 
 const WEEKDAYS = ["月", "火", "水", "木", "金", "土", "日"];

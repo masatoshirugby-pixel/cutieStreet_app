@@ -34,14 +34,24 @@ def _judge_schedule(post_text: str) -> JudgementResult | None:
         return None  # ビデオはスキップ
 
     if type_str == "LIVE":
+        if any(kw in post_text for kw in ["ワンマン", "単独公演", "単独ライブ"]):
+            return JudgementResult(is_event=True, category="単独ライブ")
+        if any(kw in post_text for kw in ["フェス", "フェスティバル", "festival"]):
+            return JudgementResult(is_event=True, category="フェス出演")
+        if any(kw in post_text for kw in ["対バン", "合同ライブ", "合同公演", "合同イベント"]):
+            return JudgementResult(is_event=True, category="合同ライブ")
         return JudgementResult(is_event=True, category="ライブ")
 
     if type_str in ("TV", "RADIO"):
         return JudgementResult(is_event=True, category="メディア出演")
 
-    # EVENT: タイトルのキーワードでさらに分類
-    if any(kw in post_text for kw in ["握手", "チェキ", "特典会", "お渡し", "ハイタッチ"]):
-        return JudgementResult(is_event=True, category="握手会・チェキ会")
+    # EVENT: タイトルのキーワードでさらに分類（オンラインサイン会は特典会より先にチェック）
+    if "大特典会" in post_text:
+        return JudgementResult(is_event=True, category="大特典会")
+    if any(kw in post_text for kw in ["オンラインサイン会", "オンラインサイン"]):
+        return JudgementResult(is_event=True, category="オンラインサイン会")
+    if any(kw in post_text for kw in ["特典会", "チェキ", "お渡し", "ハイタッチ", "サイン会"]):
+        return JudgementResult(is_event=True, category="特典会")
     if any(kw in post_text for kw in ["リリースイベント", "リリイベ", "発売記念", "インストア"]):
         return JudgementResult(is_event=True, category="リリースイベント")
 
