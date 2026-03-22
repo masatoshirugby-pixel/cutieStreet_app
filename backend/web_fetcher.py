@@ -110,6 +110,22 @@ def _get_article_links(soup: BeautifulSoup, base_url: str) -> list[str]:
     return result[:MAX_DETAIL_PAGES]
 
 
+def _extract_next_data_text(soup: BeautifulSoup) -> str:
+    """
+    詳細ページの __NEXT_DATA__ JSON から生テキストを抽出する。
+    HTMLレンダリングで日付が要素分断される場合の補完用。
+    """
+    import json as _json
+    script = soup.find("script", {"id": "__NEXT_DATA__"})
+    if not script or not script.string:
+        return ""
+    try:
+        data = _json.loads(script.string)
+        return _json.dumps(data, ensure_ascii=False)[:4000]
+    except Exception:
+        return ""
+
+
 def _soup_to_tweet(url: str, soup: BeautifulSoup) -> TweetData:
     # <title> タグ
     page_title = soup.title.get_text(strip=True) if soup.title else ""
@@ -119,9 +135,10 @@ def _soup_to_tweet(url: str, soup: BeautifulSoup) -> TweetData:
         for tag in soup.find_all(["h1", "h2", "h3"])
     )
     body = soup.get_text(separator=" ", strip=True)[:2000]
+    # __NEXT_DATA__ JSON から生テキストを補完（日付が HTML レンダリングで分断されるケース対策）
+    next_data = _extract_next_data_text(soup)
     post_id = f"web_{hashlib.md5(url.encode()).hexdigest()[:12]}"
-    # headings を先頭に置くことで日付抽出の精度を上げる
-    post_text = f"{page_title} {headings} {body}"
+    post_text = f"{page_title} {headings} {body} {next_data}"
     return TweetData(
         post_id=post_id,
         post_text=post_text,
