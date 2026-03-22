@@ -148,10 +148,11 @@ def get_events(account: Optional[str] = None, limit: int = 200) -> list[EventRes
 
 
 def get_latest_post_id(account: str) -> Optional[str]:
+    """差分取得用: X投稿の最新 post_id を返す（YouTube/Web/Email は除外）"""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT post_id FROM events WHERE account = %s ORDER BY posted_at DESC LIMIT 1",
+                "SELECT post_id FROM events WHERE account = %s AND source = 'x' ORDER BY posted_at DESC LIMIT 1",
                 (account,),
             )
             row = cur.fetchone()
