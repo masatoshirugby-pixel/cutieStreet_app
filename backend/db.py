@@ -147,6 +147,26 @@ def get_events(account: Optional[str] = None, limit: int = 1000) -> list[EventRe
             return [EventResponse(**dict(row)) for row in cur.fetchall()]
 
 
+def get_news_without_deadlines() -> list[EventResponse]:
+    """締切レコードが未作成の news イベントを全件返す（バックフィル用）"""
+    with get_conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT e.* FROM events e
+                WHERE e.source IN ('news', 'x')
+                  AND e.is_event = TRUE
+                  AND e.category != '申込締切'
+                  AND NOT EXISTS (
+                      SELECT 1 FROM events d
+                      WHERE d.post_id LIKE e.post_id || '_deadline%'
+                  )
+                ORDER BY e.event_date DESC NULLS LAST
+                """
+            )
+            return [EventResponse(**dict(row)) for row in cur.fetchall()]
+
+
 def get_latest_post_id(account: str) -> Optional[str]:
     """差分取得用: X投稿の最新 post_id を返す（YouTube/Web/Email は除外）"""
     with get_conn() as conn:

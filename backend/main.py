@@ -81,6 +81,17 @@ async def manual_fetch_web():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/fetch/deadlines")
+async def manual_deadline_backfill():
+    """手動トリガー: DB内の全newsイベントに対して締切レコードを補完する。"""
+    try:
+        count = await asyncio.to_thread(scheduler.run_deadline_backfill)
+        return {"message": f"{count} 件の申込締切レコードを補完しました"}
+    except Exception as e:
+        logger.error(f"/fetch/deadlines エラー: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/emails", response_model=list[EmailResponse])
 def get_emails(account: str = Query(default=None)):
     return db.get_emails(account=account)

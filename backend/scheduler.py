@@ -316,11 +316,53 @@ def run_email_pipeline() -> int:
 # 全体パイプライン
 # -----------------------------------------------------------------------
 
+def run_deadline_backfill() -> int:
+    """DB内の news/X 記事で締切レコードが未作成のものを全件補完する。"""
+    from datetime import date as _date
+    events = db.get_news_without_deadlines()
+    count = 0
+    for event in events:
+        entries = extract_deadline_dates(event.post_text)
+        if not entries:
+            continue
+        event_date_obj = _date.fromisoformat(event.event_date) if event.event_date else None
+        post_url = event.post_url or ""
+        for idx, (label, deadline_date) in enumerate(entries):
+            if event_date_obj and deadline_date >= event_date_obj:
+                continue
+            suffix = "_deadline" if idx == 0 else f"_deadline_{idx}"
+            deadline_id = f"{event.post_id}{suffix}"
+            if db.is_post_exists(deadline_id):
+                continue
+            deadline_record = EventRecord(
+                post_id=deadline_id,
+                post_text=event.post_text,
+                post_url=post_url,
+                posted_at=event.posted_at,
+                is_event=True,
+                account=event.account,
+                category="申込締切",
+                event_date=deadline_date.isoformat(),
+                venue=label,
+                image_url=None,
+                source=event.source,
+                created_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            )
+            if db.save_event(deadline_record):
+                count += 1
+                logger.info(
+                    f"[backfill] 申込締切補完: {deadline_id} label={label} deadline={deadline_date}"
+                )
+    logger.info(f"[backfill] 申込締切補完 合計 {count} 件")
+    return count
+
+
 def run_web_pipeline() -> int:
     """Web スクレイピング（スケジュールページ）のみ実行。X API は呼ばない。"""
     total = 0
     for account in ACCOUNTS:
         total += run_web_for_account(account)
+    run_deadline_backfill()
     deleted = db.delete_expired_events()
     if deleted:
         logger.info(f"期限切れイベント {deleted} 件を削除しました")
