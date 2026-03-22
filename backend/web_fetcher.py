@@ -20,15 +20,18 @@ logger = logging.getLogger(__name__)
 SITE_URLS: dict[str, list[str]] = {
     "CUTIE_STREET_": [
         "https://cutiestreet.asobisystem.com/news/1/",
+        "https://cutiestreet.asobisystem.com/news/2/",
         "https://cutiestreet.asobisystem.com/live_information/schedule/list/",
     ],
     "CANDY_TUNE_": [
         "https://candytune.asobisystem.com/news/1/",
+        "https://candytune.asobisystem.com/news/2/",
         "https://candytune.asobisystem.com/live_information/schedule/list/",
     ],
     "SWEET_STEADY": [
         "https://sweetsteady.asobisystem.com/live_information/schedule/list/",
         "https://sweetsteady.asobisystem.com/news/1/",
+        "https://sweetsteady.asobisystem.com/news/2/",
     ],
 }
 
