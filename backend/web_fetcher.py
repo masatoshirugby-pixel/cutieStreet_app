@@ -6,6 +6,7 @@
 import hashlib
 import logging
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from urllib.parse import urljoin, urlparse
 
@@ -129,25 +130,38 @@ def _soup_to_tweet(url: str, soup: BeautifulSoup) -> TweetData:
     )
 
 
+def _fetch_detail(link: str) -> TweetData | None:
+    """詳細ページ1件を取得して TweetData に変換する（並列実行用）"""
+    time.sleep(0.2)  # サーバー負荷軽減
+    detail_soup = _fetch_soup(link)
+    if not detail_soup:
+        return None
+    return _soup_to_tweet(link, detail_soup)
+
+
 def fetch_web_events(account: str) -> list[TweetData]:
-    """公式サイトのイベント情報を取得する"""
+    """公式サイトのイベント情報を取得する（詳細ページを並列取得）"""
     base_urls = SITE_URLS.get(account, [])
-    results: list[TweetData] = []
-    seen_ids: set[str] = set()
+    all_links: list[str] = []
+    seen_links: set[str] = set()
 
     for base_url in base_urls:
         soup = _fetch_soup(base_url)
         if not soup:
             continue
-
-        # 詳細ページを追跡して取得
         for link in _get_article_links(soup, base_url):
-            time.sleep(0.5)  # サーバー負荷軽減
-            detail_soup = _fetch_soup(link)
-            if not detail_soup:
-                continue
-            td = _soup_to_tweet(link, detail_soup)
-            if td.post_id not in seen_ids:
+            if link not in seen_links:
+                seen_links.add(link)
+                all_links.append(link)
+
+    results: list[TweetData] = []
+    seen_ids: set[str] = set()
+
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {executor.submit(_fetch_detail, link): link for link in all_links}
+        for future in as_completed(futures):
+            td = future.result()
+            if td and td.post_id not in seen_ids:
                 results.append(td)
                 seen_ids.add(td.post_id)
 
