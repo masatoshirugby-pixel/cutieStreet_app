@@ -215,21 +215,43 @@ def save_email(record: EmailRecord) -> bool:
             return cur.rowcount > 0
 
 
+_EXCLUDE_SUBJECT_FRAGMENTS = (
+    "ご注文内容のご確認",
+    "ご注文の確認",
+    "注文確認",
+    "ご注文ありがとう",
+    "購入完了",
+    "お買い上げありがとう",
+    "order confirmation",
+)
+
+
 def get_emails(account: Optional[str] = None) -> list[EmailResponse]:
+    exclude_conditions = " AND ".join(
+        f"subject NOT ILIKE %s" for _ in _EXCLUDE_SUBJECT_FRAGMENTS
+    )
+    exclude_params = tuple(f"%{s}%" for s in _EXCLUDE_SUBJECT_FRAGMENTS)
+
     with get_conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             if account:
                 cur.execute(
-                    """
+                    f"""
                     SELECT * FROM emails
-                    WHERE account = %s
+                    WHERE account = %s AND ({exclude_conditions})
                     ORDER BY received_at DESC
                     LIMIT 50
                     """,
-                    (account,),
+                    (account,) + exclude_params,
                 )
             else:
                 cur.execute(
-                    "SELECT * FROM emails ORDER BY received_at DESC LIMIT 50"
+                    f"""
+                    SELECT * FROM emails
+                    WHERE {exclude_conditions}
+                    ORDER BY received_at DESC
+                    LIMIT 50
+                    """,
+                    exclude_params,
                 )
             return [EmailResponse(**dict(row)) for row in cur.fetchall()]

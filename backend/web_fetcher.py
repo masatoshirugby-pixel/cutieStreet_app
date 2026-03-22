@@ -71,7 +71,7 @@ def _extract_links_from_next_data(soup: BeautifulSoup, base_url: str) -> list[st
         import re
         text = json.dumps(data)
         # /news/detail/XXXXX や /live_information/schedule/detail/XXXXX 等のパス
-        paths = re.findall(r'"(/(?:news|live_information)[^"]{5,80})"', text)
+        paths = re.findall(r'"(/(?:news|live_information)/(?:[^"]*?/)?detail/[^"]{1,60})"', text)
         seen: set[str] = set()
         for path in paths:
             if "#" in path or "?" in path:
