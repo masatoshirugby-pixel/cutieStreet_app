@@ -24,7 +24,7 @@ _DATE_PATTERNS: list[tuple[re.Pattern, bool]] = [
     (re.compile(r"(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日"), True),   # 2026年3月21日
     (re.compile(r"(\d{4})/\s*(\d{1,2})/\s*(\d{1,2})"), True),       # 2026/3/21
     (re.compile(r"(\d{1,2})月\s*(\d{1,2})日"), False),               # 3月21日
-    (re.compile(r"(?<!\d)(\d{1,2})/(\d{1,2})(?!\d)"), False),       # 3/21
+    (re.compile(r"(?<!\d)(\d{1,2})\s*/\s*(\d{1,2})(?!\d)"), False),  # 3/21 or "3 /21"
 ]
 
 # 曜日・補助キーワード（日付の直後に現れやすい）
@@ -53,6 +53,9 @@ def extract_event_dates(text: str) -> list[date]:
                         year += 1
 
                 d = date(year, month, day)
+                # 5年以上前のイベントは URL 等のノイズと判断して除外
+                if (today - d).days > 365 * 5:
+                    continue
                 if d not in results:
                     results.append(d)
             except ValueError:
