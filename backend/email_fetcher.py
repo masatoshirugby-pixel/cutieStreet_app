@@ -31,6 +31,18 @@ GROUP_KEYWORDS: dict[str, list[str]] = {
 
 FETCH_LIMIT = 200  # 直近の確認件数
 
+# 除外する件名パターン（注文確認など）
+EXCLUDE_SUBJECT_KEYWORDS = [
+    "ご注文内容のご確認",
+    "ご注文の確認",
+    "注文確認",
+    "ご注文ありがとう",
+    "購入完了",
+    "お買い上げありがとう",
+    "order confirmation",
+    "Order Confirmation",
+]
+
 
 def _decode_str(value: str) -> str:
     parts = decode_header(value)
@@ -109,6 +121,10 @@ def fetch_emails() -> list[dict]:
             date_str = msg.get("Date", "")
             message_id = msg.get("Message-ID", f"email_{msg_id.decode()}")
             body = _get_body(msg)
+
+            # 注文確認メールを除外
+            if any(kw in subject for kw in EXCLUDE_SUBJECT_KEYWORDS):
+                continue
 
             account = _detect_account(f"{subject} {body}")
             if not account:
