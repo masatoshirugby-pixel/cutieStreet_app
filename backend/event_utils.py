@@ -32,6 +32,13 @@ _DATE_PATTERNS: list[tuple[re.Pattern, bool]] = [
 # 曜日・補助キーワード（日付の直後に現れやすい）
 _DATE_CONTEXT = re.compile(r"[（(][月火水木金土日][）)]|開催|開場|開演|予定")
 
+# 開催日を示す文脈キーワード（直後に日付が来やすい）
+_EVENT_DATE_CONTEXT_KEYWORDS = re.compile(
+    r"(開催日程|開催日時|開催日|実施日時|実施日|イベント日|日時|日程|開催時間|開演日)\s*[：:：\s]?\s*"
+)
+# 文脈キーワードから何文字以内の日付を「開催日」と見なすか
+_CONTEXT_WINDOW = 60
+
 
 def extract_event_dates(text: str) -> list[date]:
     """
@@ -66,8 +73,52 @@ def extract_event_dates(text: str) -> list[date]:
     return sorted(results)
 
 
+def _extract_contextual_event_date(text: str) -> date | None:
+    """
+    「開催日程」「開催日」「日時」などのキーワード直後にある日付を開催日として返す。
+    ニュース記事の本文に含まれる公開日ノイズを回避するための補助関数。
+    """
+    today = datetime.now(timezone.utc).date()
+
+    for kw_match in _EVENT_DATE_CONTEXT_KEYWORDS.finditer(text):
+        start = kw_match.end()
+        window = text[start: start + _CONTEXT_WINDOW]
+
+        for pat, has_year in _DATE_PATTERNS:
+            m = pat.search(window)
+            if not m:
+                continue
+            try:
+                if has_year:
+                    year, month, day = int(m.group(1)), int(m.group(2)), int(m.group(3))
+                else:
+                    month, day = int(m.group(1)), int(m.group(2))
+                    year = today.year
+                    candidate = date(year, month, day)
+                    if (today - candidate).days > 90:
+                        year += 1
+
+                d = date(year, month, day)
+                if (today - d).days > 365 * 5:
+                    continue
+                return d
+            except ValueError:
+                pass
+
+    return None
+
+
 def extract_event_date(text: str) -> date | None:
-    """イベント日付を返す。タイトル部分（冒頭200文字）を優先し、なければ全文から最初の日付を返す。"""
+    """
+    イベント日付を返す。
+    1. 開催日程・日時などのキーワード周辺から文脈的に抽出（ニュース記事の公開日ノイズ対策）
+    2. タイトル部分（冒頭200文字）
+    3. 全文から最初の日付
+    """
+    contextual = _extract_contextual_event_date(text)
+    if contextual:
+        return contextual
+
     head_dates = extract_event_dates(text[:200])
     if head_dates:
         return head_dates[0]
