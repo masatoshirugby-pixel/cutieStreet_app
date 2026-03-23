@@ -194,10 +194,12 @@ def delete_expired_events() -> int:
     cutoff = (datetime.now(timezone.utc) - timedelta(days=EVENT_EXPIRY_DAYS)).date().isoformat()
     with get_conn() as conn:
         with conn.cursor() as cur:
+            # 通常イベント（申込締切以外）を期限切れ削除
             cur.execute(
                 """
                 DELETE FROM events
-                WHERE (
+                WHERE category != '申込締切'
+                AND (
                     (event_date IS NOT NULL AND event_date < %s)
                     OR
                     (event_date IS NULL AND posted_at::date < %s::date)
@@ -205,7 +207,26 @@ def delete_expired_events() -> int:
                 """,
                 (cutoff, cutoff),
             )
-            return cur.rowcount
+            deleted_normal = cur.rowcount
+
+            # 申込締切レコードは親イベントが存在しない場合のみ削除
+            # （親イベントが未来にある間は締切日が過去でも残す）
+            cur.execute(
+                """
+                DELETE FROM events dl
+                WHERE dl.category = '申込締切'
+                AND dl.event_date IS NOT NULL
+                AND dl.event_date < %s
+                AND NOT EXISTS (
+                    SELECT 1 FROM events parent
+                    WHERE dl.post_id LIKE parent.post_id || '_deadline%%'
+                )
+                """,
+                (cutoff,),
+            )
+            deleted_deadlines = cur.rowcount
+
+            return deleted_normal + deleted_deadlines
 
 
 # -----------------------------------------------------------------------
