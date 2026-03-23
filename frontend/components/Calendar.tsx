@@ -128,61 +128,19 @@ export default function Calendar({ events, accentColor }: Props) {
   // event_date がないイベント
   const undatedEvents = displayEvents.filter((e) => !e.event_date);
 
-  // 選択イベントに関連する申込締切（全eventsから、フィルターに関わらず検索）
-  const relatedDeadlines = (() => {
-    if (!selected || selected.category === "申込締切") return [];
+  // 選択イベントに関連する申込締切（post_id プレフィックス一致のみ）
+  const relatedDeadlines =
+    selected && selected.category !== "申込締切"
+      ? events
+          .filter((e) => e.category === "申込締切" && e.post_id.startsWith(selected.post_id + "_deadline"))
+          .sort((a, b) => new Date(a.event_date!).getTime() - new Date(b.event_date!).getTime())
+      : [];
 
-    // post_id プレフィックス一致（news/web/x 由来の締切）
-    const byPostId = events.filter(
-      (e) => e.category === "申込締切" && e.post_id.startsWith(selected.post_id + "_deadline")
-    );
-    if (byPostId.length > 0) {
-      return byPostId.sort(
-        (a, b) => new Date(a.event_date!).getTime() - new Date(b.event_date!).getTime()
-      );
-    }
-
-    // フォールバック: 日付範囲（メール由来の締切など）
-    if (!selected.event_date) return [];
-    return events
-      .filter(
-        (e) =>
-          e.category === "申込締切" &&
-          e.account === selected.account &&
-          e.event_date !== null &&
-          new Date(e.event_date) <= new Date(selected.event_date!) &&
-          new Date(selected.event_date!).getTime() - new Date(e.event_date).getTime() <=
-            45 * 24 * 60 * 60 * 1000
-      )
-      .sort((a, b) => new Date(a.event_date!).getTime() - new Date(b.event_date!).getTime());
-  })();
-
-  // 申込締切クリック時：この締切が対応する先のイベントを検索
+  // 申込締切クリック時：post_id の _deadline サフィックスを除去して親イベントを検索
   const linkedEvent = (() => {
     if (!selected || selected.category !== "申込締切") return null;
-
-    // post_id から _deadline サフィックスを除去して親イベントを検索
     const parentPostId = selected.post_id.replace(/_deadline(_\d+)?$/, "");
-    if (parentPostId !== selected.post_id) {
-      const found = events.find((e) => e.post_id === parentPostId && e.category !== "申込締切");
-      if (found) return found;
-    }
-
-    // フォールバック: 日付範囲（メール由来の締切など）
-    if (!selected.event_date) return null;
-    return (
-      events
-        .filter(
-          (e) =>
-            e.account === selected.account &&
-            e.category !== "申込締切" &&
-            e.event_date !== null &&
-            new Date(e.event_date) >= new Date(selected.event_date!) &&
-            new Date(e.event_date).getTime() - new Date(selected.event_date!).getTime() <=
-              45 * 24 * 60 * 60 * 1000
-        )
-        .sort((a, b) => new Date(a.event_date!).getTime() - new Date(b.event_date!).getTime())[0] ?? null
-    );
+    return events.find((e) => e.post_id === parentPostId && e.category !== "申込締切") ?? null;
   })();
 
   function prevMonth() {
