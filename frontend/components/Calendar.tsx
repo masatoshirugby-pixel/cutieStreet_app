@@ -152,6 +152,14 @@ export default function Calendar({ events, accentColor }: Props) {
     return events.find((e) => e.post_id === parentPostId && e.category !== "申込締切") ?? null;
   })();
 
+  // カレンダー上でハイライトする post_id セット（選択中イベントと紐づく相手）
+  const linkedPostIds = new Set<string>();
+  if (selected?.category === "申込締切" && linkedEvent) {
+    linkedPostIds.add(linkedEvent.post_id);
+  } else if (selected && selected.category !== "申込締切") {
+    relatedDeadlines.forEach((d) => linkedPostIds.add(d.post_id));
+  }
+
   function prevMonth() {
     if (month === 0) {
       setYear((y) => y - 1);
@@ -299,7 +307,13 @@ export default function Calendar({ events, accentColor }: Props) {
                       onClick={() => setSelected(ev)}
                       className={`text-left text-xs px-1 py-0.5 rounded truncate w-full ${
                         CATEGORY_COLORS[ev.category ?? ""] ?? CATEGORY_COLORS["その他イベント"]
-                      } ${selected?.post_id === ev.post_id ? "ring-2 ring-offset-1 ring-gray-400" : ""}`}
+                      } ${
+                        selected?.post_id === ev.post_id
+                          ? "ring-2 ring-offset-1 ring-gray-400"
+                          : linkedPostIds.has(ev.post_id)
+                          ? "ring-2 ring-offset-1 ring-red-400"
+                          : ""
+                      }`}
                     >
                       {ev.category === "申込締切" && ev.venue
                         ? ev.venue
