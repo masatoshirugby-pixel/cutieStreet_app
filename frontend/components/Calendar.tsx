@@ -109,8 +109,17 @@ export default function Calendar({ events, accentColor }: Props) {
   const firstWeekday = getFirstWeekday(year, month);
 
   // カテゴリフィルター適用（カレンダー表示用）
+  // 申込締切フィルター時は、締切に紐づく親イベントも合わせて表示する
   const displayEvents = isFiltered
-    ? events.filter((e) => selectedCategories.has(e.category ?? ""))
+    ? events.filter((e) => {
+        if (selectedCategories.has(e.category ?? "")) return true;
+        if (selectedCategories.has("申込締切") && e.category !== "申込締切") {
+          return events.some(
+            (d) => d.category === "申込締切" && d.post_id.startsWith(e.post_id + "_deadline")
+          );
+        }
+        return false;
+      })
     : events;
 
   // event_date があるイベントを日付でグループ化
