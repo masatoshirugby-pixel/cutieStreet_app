@@ -42,8 +42,10 @@ def _judge_schedule(post_text: str) -> JudgementResult | None:
             return JudgementResult(is_event=True, category="合同ライブ")
         return JudgementResult(is_event=True, category="ライブ")
 
-    if type_str in ("TV", "RADIO"):
-        return JudgementResult(is_event=True, category="メディア出演")
+    if type_str == "TV":
+        return JudgementResult(is_event=True, category="テレビ出演")
+    if type_str == "RADIO":
+        return JudgementResult(is_event=True, category="ラジオ出演")
 
     # EVENT: タイトルのキーワードでさらに分類（オンラインサイン会は特典会より先にチェック）
     if "大特典会" in post_text:
