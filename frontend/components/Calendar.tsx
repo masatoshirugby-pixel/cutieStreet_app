@@ -476,9 +476,11 @@ export default function Calendar({ events, accentColor }: Props) {
                   <p className="text-xs text-gray-500 leading-relaxed whitespace-pre-wrap">
                     {selected.post_text}
                   </p>
-                  <p className="text-xs text-gray-400 mt-1 text-right">
-                    {formatPostedAt(selected.posted_at)} 投稿
-                  </p>
+                  {selected.source !== "web" && (
+                    <p className="text-xs text-gray-400 mt-1 text-right">
+                      {formatPostedAt(selected.posted_at)} 投稿
+                    </p>
+                  )}
                 </div>
               </>
             )}
