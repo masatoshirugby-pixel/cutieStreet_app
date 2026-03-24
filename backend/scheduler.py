@@ -52,10 +52,12 @@ def _judge_schedule(post_text: str) -> JudgementResult | None:
         return JudgementResult(is_event=True, category="大特典会")
     if any(kw in post_text for kw in ["オンラインサイン会", "オンラインサイン"]):
         return JudgementResult(is_event=True, category="オンラインサイン会")
-    if any(kw in post_text for kw in ["特典会", "チェキ", "お渡し", "ハイタッチ", "サイン会"]):
-        return JudgementResult(is_event=True, category="特典会")
     if any(kw in post_text for kw in ["リリースイベント", "リリイベ", "発売記念", "インストア"]):
         return JudgementResult(is_event=True, category="リリースイベント")
+    if any(kw in post_text for kw in ["特典会", "チェキ", "お渡し", "ハイタッチ", "サイン会"]):
+        return JudgementResult(is_event=True, category="特典会")
+    if any(kw.lower() in post_text.lower() for kw in ["フェス", "フェスティバル", "festival"]):
+        return JudgementResult(is_event=True, category="フェス出演")
 
     return JudgementResult(is_event=True, category="その他イベント")
 
