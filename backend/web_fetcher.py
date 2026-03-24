@@ -78,10 +78,13 @@ def _next_month_url(base_url: str) -> str:
     return f"{base_url}?viewMode=default&year={year}&month={month:02d}"
 
 
+_SCHEDULE_DETAIL_RE = re.compile(r"/(live_information|news)/detail/")
+
+
 def _fetch_schedule_from_list(url: str) -> list[TweetData]:
     """
-    スケジュール一覧ページの <a href="/live_information/detail/..."> を解析して
-    イベント一覧を返す。詳細ページへのアクセスは行わない。
+    スケジュール一覧ページの <a href="/live_information/detail/..."> および
+    <a href="/news/detail/..."> を解析してイベント一覧を返す。
     """
     soup = _fetch_soup(url)
     if not soup:
@@ -92,14 +95,13 @@ def _fetch_schedule_from_list(url: str) -> list[TweetData]:
 
     for a in soup.find_all("a", href=True):
         href = a["href"]
-        if "/live_information/detail/" not in href:
+        if not _SCHEDULE_DETAIL_RE.search(href):
             continue
 
         post_text = a.get_text(separator=" ", strip=True)
         if not post_text or not _DATE_VAL_RE.search(post_text):
             continue
 
-        # ドメイン込みの完全URLを post_id に使用（グループ間の衝突を防ぐ＋リンク先として利用可能）
         full_url = urljoin(url, href)
         post_id = full_url
         if post_id in seen_ids:
@@ -119,7 +121,7 @@ def _fetch_schedule_from_list(url: str) -> list[TweetData]:
     if next_soup:
         for a in next_soup.find_all("a", href=True):
             href = a["href"]
-            if "/live_information/detail/" not in href:
+            if not _SCHEDULE_DETAIL_RE.search(href):
                 continue
             post_text = a.get_text(separator=" ", strip=True)
             if not post_text or not _DATE_VAL_RE.search(post_text):
