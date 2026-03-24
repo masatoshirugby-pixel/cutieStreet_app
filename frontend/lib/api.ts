@@ -31,7 +31,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 export async function fetchEvents(account: string, limit = 1000): Promise<Event[]> {
   const res = await fetch(
     `${BASE_URL}/events?account=${account}&limit=${limit}`,
-    { next: { revalidate: 3600 } }
+    { next: { revalidate: 300 } }
   );
   if (!res.ok) throw new Error(`APIエラー: ${res.status}`);
   return res.json();
@@ -40,7 +40,7 @@ export async function fetchEvents(account: string, limit = 1000): Promise<Event[
 export async function fetchEmails(account: string): Promise<EmailItem[]> {
   const res = await fetch(
     `${BASE_URL}/emails?account=${account}`,
-    { next: { revalidate: 3600 } }
+    { next: { revalidate: 300 } }
   );
   if (!res.ok) return [];
   return res.json();
