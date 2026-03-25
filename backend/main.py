@@ -22,10 +22,11 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     db.init_db()
     logger.info("DB 初期化完了")
-    task = asyncio.create_task(scheduler.run_loop())
-    logger.info("スケジューラー起動")
+    # パイプラインは group_calendar_app_demo に移管したため無効化
+    # task = asyncio.create_task(scheduler.run_loop())
+    # logger.info("スケジューラー起動")
     yield
-    task.cancel()
+    # task.cancel()
 
 
 app = FastAPI(title="CUTIE_STREET イベント API", lifespan=lifespan)
